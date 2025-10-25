@@ -1,4 +1,3 @@
-import { supabase } from '../supabase';
 import type { Database } from '../database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -32,18 +31,23 @@ export async function getProfile(userId: string, profileType: 'company' | 'indiv
  * Get profile by ID
  */
 export async function getProfileById(id: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', id)
-    .single();
+  try {
+    const response = await fetch(`/api/profiles/${id}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (error) {
+    if (!response.ok) {
+      console.error('Error fetching profile:', await response.text());
+      return null;
+    }
+
+    const { data } = await response.json();
+    return data;
+  } catch (error) {
     console.error('Error fetching profile:', error);
     return null;
   }
-
-  return data;
 }
 
 /**

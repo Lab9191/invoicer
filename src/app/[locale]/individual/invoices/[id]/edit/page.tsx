@@ -16,7 +16,7 @@ type Client = Database['public']['Tables']['clients']['Row'];
 const invoiceItemSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   quantity: z.number().min(0.01, 'Quantity must be positive'),
-  unit: z.string().default('hours'),
+  unit: z.string().min(1, 'Unit is required'),
   unit_price: z.number().min(0, 'Price must be non-negative'),
 });
 

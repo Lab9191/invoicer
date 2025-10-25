@@ -1,4 +1,3 @@
-import { supabase } from '../supabase';
 import type { Database } from '../database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -9,89 +8,108 @@ type ClientUpdate = Partial<ClientInsert>;
  * Get all clients for a profile
  */
 export async function getClients(profileId: string): Promise<Client[]> {
-  const { data, error } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('profile_id', profileId)
-    .order('name', { ascending: true });
+  try {
+    const response = await fetch(`/api/clients?profileId=${profileId}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (error) {
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Error fetching clients:', error);
+      throw new Error(error.error || 'Failed to fetch clients');
+    }
+
+    const { data } = await response.json();
+    return data || [];
+  } catch (error) {
     console.error('Error fetching clients:', error);
-    throw new Error(error.message);
+    throw error;
   }
-
-  return data || [];
 }
 
 /**
  * Get a single client by ID
  */
 export async function getClientById(id: string): Promise<Client | null> {
-  const { data, error } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('id', id)
-    .single();
+  try {
+    const response = await fetch(`/api/clients/${id}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (error) {
+    if (!response.ok) {
+      console.error('Error fetching client');
+      return null;
+    }
+
+    const { data } = await response.json();
+    return data;
+  } catch (error) {
     console.error('Error fetching client:', error);
     return null;
   }
-
-  return data;
 }
 
 /**
  * Create a new client
  */
 export async function createClient(client: ClientInsert): Promise<Client> {
-  // @ts-ignore - Supabase type inference issue
-  const { data, error } = await supabase
-    .from('clients')
-    .insert(client)
-    .select()
-    .single();
+  const response = await fetch('/api/clients', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(client),
+    credentials: 'include',
+  });
 
-  if (error) {
-    console.error('Error creating client:', error);
-    throw new Error(error.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    console.error('Error creating client:', result.error);
+    throw new Error(result.error || 'Failed to create client');
   }
 
-  return data as Client;
+  return result.data;
 }
 
 /**
  * Update an existing client
  */
 export async function updateClient(id: string, updates: ClientUpdate): Promise<Client> {
-  // @ts-ignore - Supabase type inference issue
-  const { data, error } = await supabase
-    .from('clients')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  const response = await fetch(`/api/clients/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+    credentials: 'include',
+  });
 
-  if (error) {
-    console.error('Error updating client:', error);
-    throw new Error(error.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    console.error('Error updating client:', result.error);
+    throw new Error(result.error || 'Failed to update client');
   }
 
-  return data as Client;
+  return result.data;
 }
 
 /**
  * Delete a client
  */
 export async function deleteClient(id: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('clients')
-    .delete()
-    .eq('id', id);
+  const response = await fetch(`/api/clients/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
 
-  if (error) {
-    console.error('Error deleting client:', error);
-    throw new Error(error.message);
+  if (!response.ok) {
+    const result = await response.json();
+    console.error('Error deleting client:', result.error);
+    throw new Error(result.error || 'Failed to delete client');
   }
 
   return true;

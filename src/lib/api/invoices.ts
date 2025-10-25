@@ -1,4 +1,3 @@
-import { supabase } from '../supabase';
 import type { Database } from '../database.types';
 
 type Invoice = Database['public']['Tables']['invoices']['Row'];
@@ -31,106 +30,53 @@ export async function getInvoices(profileId: string, filters?: {
   fromDate?: string;
   toDate?: string;
 }): Promise<InvoiceWithItems[]> {
-  let query = supabase
-    .from('invoices')
-    .select(`
-      *,
-      client:clients (
-        id,
-        name,
-        email,
-        address,
-        city,
-        postal_code,
-        country,
-        company_id,
-        tax_id,
-        vat_id
-      )
-    `)
-    .eq('profile_id', profileId)
-    .order('issue_date', { ascending: false });
+  try {
+    const params = new URLSearchParams({ profileId });
 
-  if (filters?.status) {
-    query = query.eq('status', filters.status);
-  }
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.fromDate) params.append('fromDate', filters.fromDate);
+    if (filters?.toDate) params.append('toDate', filters.toDate);
 
-  if (filters?.fromDate) {
-    query = query.gte('issue_date', filters.fromDate);
-  }
+    const response = await fetch(`/api/invoices?${params.toString()}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (filters?.toDate) {
-    query = query.lte('issue_date', filters.toDate);
-  }
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Error fetching invoices:', error);
+      throw new Error(error.error || 'Failed to fetch invoices');
+    }
 
-  const { data, error } = await query;
-
-  if (error) {
+    const { data } = await response.json();
+    return data || [];
+  } catch (error) {
     console.error('Error fetching invoices:', error);
-    throw new Error(error.message);
+    throw error;
   }
-
-  // Fetch items for each invoice
-  const invoicesWithItems: InvoiceWithItems[] = await Promise.all(
-    (data || []).map(async (invoice) => {
-      const items = await getInvoiceItems(invoice.id);
-      return { ...invoice, items };
-    })
-  );
-
-  return invoicesWithItems;
 }
 
 /**
- * Get a single invoice by ID with items
+ * Get a single invoice by ID
  */
 export async function getInvoiceById(id: string): Promise<InvoiceWithItems | null> {
-  const { data: invoice, error } = await supabase
-    .from('invoices')
-    .select(`
-      *,
-      client:clients (
-        id,
-        name,
-        email,
-        address,
-        city,
-        postal_code,
-        country,
-        company_id,
-        tax_id,
-        vat_id
-      )
-    `)
-    .eq('id', id)
-    .single();
+  try {
+    const response = await fetch(`/api/invoices/${id}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (error) {
+    if (!response.ok) {
+      console.error('Error fetching invoice');
+      return null;
+    }
+
+    const { data } = await response.json();
+    return data;
+  } catch (error) {
     console.error('Error fetching invoice:', error);
     return null;
   }
-
-  const items = await getInvoiceItems(id);
-
-  return { ...invoice, items };
-}
-
-/**
- * Get invoice items
- */
-export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
-  const { data, error } = await supabase
-    .from('invoice_items')
-    .select('*')
-    .eq('invoice_id', invoiceId)
-    .order('sort_order', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching invoice items:', error);
-    return [];
-  }
-
-  return data || [];
 }
 
 /**
@@ -138,137 +84,160 @@ export async function getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>
  */
 export async function createInvoice(
   invoice: InvoiceInsert,
-  items: Omit<InvoiceItemInsert, 'invoice_id'>[]
+  items: InvoiceItemInsert[]
 ): Promise<InvoiceWithItems> {
-  // Create invoice
-  const { data: newInvoice, error: invoiceError } = await supabase
-    .from('invoices')
-    .insert(invoice)
-    .select()
-    .single();
+  const response = await fetch('/api/invoices', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ...invoice, items }),
+    credentials: 'include',
+  });
 
-  if (invoiceError) {
-    console.error('Error creating invoice:', invoiceError);
-    throw new Error(invoiceError.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    console.error('Error creating invoice:', result.error);
+    throw new Error(result.error || 'Failed to create invoice');
   }
 
-  // Create invoice items
-  const itemsWithInvoiceId = items.map((item, index) => ({
-    ...item,
-    invoice_id: newInvoice.id,
-    sort_order: index,
-  }));
-
-  const { data: newItems, error: itemsError } = await supabase
-    .from('invoice_items')
-    .insert(itemsWithInvoiceId)
-    .select();
-
-  if (itemsError) {
-    console.error('Error creating invoice items:', itemsError);
-    throw new Error(itemsError.message);
-  }
-
-  return { ...newInvoice, items: newItems || [], client: null };
+  return result.data;
 }
 
 /**
- * Update an existing invoice with items
+ * Update an existing invoice
  */
 export async function updateInvoice(
   id: string,
-  invoice: InvoiceUpdate,
-  items: Omit<InvoiceItemInsert, 'invoice_id'>[]
-): Promise<InvoiceWithItems> {
-  // Update invoice
-  const { data: updatedInvoice, error: invoiceError } = await supabase
-    .from('invoices')
-    .update(invoice)
-    .eq('id', id)
-    .select()
-    .single();
+  updates: InvoiceUpdate
+): Promise<Invoice> {
+  const response = await fetch(`/api/invoices/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+    credentials: 'include',
+  });
 
-  if (invoiceError) {
-    console.error('Error updating invoice:', invoiceError);
-    throw new Error(invoiceError.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    console.error('Error updating invoice:', result.error);
+    throw new Error(result.error || 'Failed to update invoice');
   }
 
-  // Delete existing items
-  await supabase.from('invoice_items').delete().eq('invoice_id', id);
-
-  // Create new items
-  const itemsWithInvoiceId = items.map((item, index) => ({
-    ...item,
-    invoice_id: id,
-    sort_order: index,
-  }));
-
-  const { data: newItems, error: itemsError } = await supabase
-    .from('invoice_items')
-    .insert(itemsWithInvoiceId)
-    .select();
-
-  if (itemsError) {
-    console.error('Error creating invoice items:', itemsError);
-    throw new Error(itemsError.message);
-  }
-
-  return { ...updatedInvoice, items: newItems || [], client: null };
+  return result.data;
 }
 
 /**
- * Delete an invoice (items will be cascade deleted)
+ * Delete an invoice
  */
 export async function deleteInvoice(id: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('invoices')
-    .delete()
-    .eq('id', id);
+  const response = await fetch(`/api/invoices/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
 
-  if (error) {
-    console.error('Error deleting invoice:', error);
-    throw new Error(error.message);
+  if (!response.ok) {
+    const result = await response.json();
+    console.error('Error deleting invoice:', result.error);
+    throw new Error(result.error || 'Failed to delete invoice');
   }
 
   return true;
 }
 
 /**
- * Generate next invoice number for a profile
+ * Get next invoice number for a profile
  */
-export async function generateInvoiceNumber(profileId: string): Promise<string> {
-  const year = new Date().getFullYear();
-  const { data, error } = await supabase
-    .from('invoices')
-    .select('invoice_number')
-    .eq('profile_id', profileId)
-    .like('invoice_number', `${year}%`)
-    .order('invoice_number', { ascending: false })
-    .limit(1);
+export async function getNextInvoiceNumber(profileId: string): Promise<string> {
+  try {
+    const invoices = await getInvoices(profileId);
 
-  if (error) {
-    console.error('Error generating invoice number:', error);
-    return `${year}0001`;
+    if (invoices.length === 0) {
+      return '1';
+    }
+
+    // Find highest invoice number
+    const numbers = invoices
+      .map(inv => parseInt(inv.invoice_number))
+      .filter(num => !isNaN(num));
+
+    if (numbers.length === 0) {
+      return '1';
+    }
+
+    const maxNumber = Math.max(...numbers);
+    return String(maxNumber + 1);
+  } catch (error) {
+    console.error('Error getting next invoice number:', error);
+    return '1';
   }
+}
 
-  if (!data || data.length === 0) {
-    return `${year}0001`;
-  }
+/**
+ * Calculate invoice totals
+ */
+export function calculateInvoiceTotals(items: InvoiceItem[]): {
+  subtotal: number;
+  vat: number;
+  total: number;
+} {
+  const subtotal = items.reduce((sum, item) => {
+    return sum + (item.quantity * item.unit_price);
+  }, 0);
 
-  const lastNumber = data[0].invoice_number;
-  const match = lastNumber.match(/(\d{4})(\d+)/);
+  const vat = items.reduce((sum, item) => {
+    const itemTotal = item.quantity * item.unit_price;
+    return sum + (itemTotal * (item.vat_rate / 100));
+  }, 0);
 
-  if (!match) {
-    return `${year}0001`;
-  }
+  const total = subtotal + vat;
 
-  const lastYear = match[1];
-  const lastSeq = parseInt(match[2], 10);
+  return {
+    subtotal: Math.round(subtotal * 100) / 100,
+    vat: Math.round(vat * 100) / 100,
+    total: Math.round(total * 100) / 100,
+  };
+}
 
-  if (lastYear === year.toString()) {
-    const nextSeq = lastSeq + 1;
-    return `${year}${nextSeq.toString().padStart(4, '0')}`;
-  } else {
-    return `${year}0001`;
-  }
+/**
+ * Format invoice number with prefix
+ */
+export function formatInvoiceNumber(
+  number: string | number,
+  prefix: string = 'INV'
+): string {
+  const numStr = String(number).padStart(4, '0');
+  return `${prefix}-${numStr}`;
+}
+
+/**
+ * Get invoice status color
+ */
+export function getInvoiceStatusColor(status: string): string {
+  const colors: Record<string, string> = {
+    draft: 'gray',
+    sent: 'blue',
+    paid: 'green',
+    overdue: 'red',
+    cancelled: 'gray',
+  };
+  return colors[status] || 'gray';
+}
+
+/**
+ * Get invoice status label
+ */
+export function getInvoiceStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    draft: 'Draft',
+    sent: 'Sent',
+    paid: 'Paid',
+    overdue: 'Overdue',
+    cancelled: 'Cancelled',
+  };
+  return labels[status] || status;
 }

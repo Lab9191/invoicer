@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { signOut, getCurrentUser } from '@/lib/auth';
+import { signOut, getCurrentUser, setupAutoRefresh } from '@/lib/auth';
 import type { AuthUser } from '@/lib/auth';
 import { useToast } from '@/components/ui';
 
@@ -31,6 +31,9 @@ export function DashboardLayout({ children, profileType, locale }: DashboardLayo
 
   useEffect(() => {
     loadUser();
+    // Setup auto-refresh for 10-minute inactivity timeout
+    const cleanup = setupAutoRefresh(10 * 60 * 1000);
+    return cleanup;
   }, []);
 
   async function loadUser() {

@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { signUp } from '@/lib/auth';
 import { Input, Button, useToast } from '@/components/ui';
+import { PasswordStrength } from '@/components/ui/password-strength';
 
 const signupSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -31,51 +32,26 @@ export default function SignupPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
 
+  const password = watch('password', '');
+
   async function onSubmit(data: SignupFormData) {
     try {
       setIsLoading(true);
       await signUp(data.email, data.password);
-      setShowSuccess(true);
-      showToast('Check your email to confirm your account!', 'success');
+      // Auto-confirm enabled - redirect directly to login
+      showToast('Account created successfully! Please sign in.', 'success');
+      router.push(`/${locale}/auth/login`);
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Signup failed', 'error');
     } finally {
       setIsLoading(false);
     }
-  }
-
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center px-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="text-6xl mb-4">✅</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Check Your Email!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              We've sent you a confirmation link. Please check your email and click the link to activate your account.
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> The email might take a few minutes to arrive. Don't forget to check your spam folder!
-              </p>
-            </div>
-            <Link
-              href={`/${locale}/auth/login`}
-              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Go to Login
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -102,16 +78,18 @@ export default function SignupPage() {
               autoComplete="email"
             />
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              {...register('password')}
-              error={errors.password?.message}
-              helperText="Minimum 8 characters"
-              required
-              autoComplete="new-password"
-            />
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+                error={errors.password?.message}
+                required
+                autoComplete="new-password"
+              />
+              <PasswordStrength password={password} />
+            </div>
 
             <Input
               label="Confirm Password"
@@ -163,7 +141,7 @@ export default function SignupPage() {
           <div className="space-y-3">
             <div className="flex items-center">
               <span className="text-green-500 mr-2">✓</span>
-              <span className="text-xs text-gray-700">Email verification required</span>
+              <span className="text-xs text-gray-700">Instant account activation</span>
             </div>
             <div className="flex items-center">
               <span className="text-green-500 mr-2">✓</span>
@@ -172,6 +150,10 @@ export default function SignupPage() {
             <div className="flex items-center">
               <span className="text-green-500 mr-2">✓</span>
               <span className="text-xs text-gray-700">Row-level security enabled</span>
+            </div>
+            <div className="flex items-center">
+              <span className="text-green-500 mr-2">✓</span>
+              <span className="text-xs text-gray-700">Auto-logout after 10min inactivity</span>
             </div>
           </div>
         </div>

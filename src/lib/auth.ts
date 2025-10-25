@@ -52,10 +52,13 @@ export async function signIn(email: string, password: string) {
  * Sign out the current user
  */
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    throw new Error(error.message);
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch (error) {
+    console.error('Error signing out:', error);
   }
 }
 
@@ -63,13 +66,22 @@ export async function signOut() {
  * Get the current authenticated user
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const { data: { user }, error } = await supabase.auth.getUser();
+  try {
+    const response = await fetch('/api/auth/user', {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (error || !user) {
+    if (!response.ok) {
+      return null;
+    }
+
+    const { user } = await response.json();
+    return user as AuthUser | null;
+  } catch (error) {
+    console.error('Error getting current user:', error);
     return null;
   }
-
-  return user as AuthUser;
 }
 
 /**

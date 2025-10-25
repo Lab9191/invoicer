@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
   );
 
   // Check if user is authenticated
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
 
@@ -61,14 +61,14 @@ export async function middleware(request: NextRequest) {
   const isRootPath = pathWithoutLocale === '' || pathWithoutLocale === '/';
 
   // If not authenticated and trying to access protected route, redirect to login
-  if (!session && !isPublicRoute && !isRootPath) {
+  if (!user && !isPublicRoute && !isRootPath) {
     const loginUrl = new URL(`/${locale}/auth/login`, request.url);
     loginUrl.searchParams.set('redirect', path);
     return NextResponse.redirect(loginUrl);
   }
 
   // If authenticated and trying to access auth pages, redirect to home
-  if (session && isPublicRoute && !pathWithoutLocale.startsWith('/auth/callback')) {
+  if (user && isPublicRoute && !pathWithoutLocale.startsWith('/auth/callback')) {
     return NextResponse.redirect(new URL(`/${locale}`, request.url));
   }
 

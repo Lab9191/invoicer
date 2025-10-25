@@ -9,39 +9,43 @@ export interface AuthUser extends User {
  * Sign up a new user with email and password
  */
 export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
-      // Auto-confirm for development - disable email verification
-      data: {
-        email_confirm: true,
-      },
+  const response = await fetch('/api/auth/signup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ email, password }),
   });
 
-  if (error) {
-    throw new Error(error.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Signup failed');
   }
 
-  return data;
+  return result.data;
 }
 
 /**
  * Sign in an existing user
  */
 export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+    credentials: 'include', // Important for cookies
   });
 
-  if (error) {
-    throw new Error(error.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Login failed');
   }
 
-  return data;
+  return result.data;
 }
 
 /**

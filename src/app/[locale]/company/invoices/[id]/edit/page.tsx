@@ -302,41 +302,44 @@ export default function EditInvoicePage() {
               <div className="space-y-4">
                 {fields.map((field, index) => (
                   <div key={field.id} className="border rounded-lg p-4 bg-gray-50">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                      <div className="md:col-span-6">
-                        <Input
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="md:col-span-12">
+                        <Textarea
                           label={t('invoice.description')}
                           {...register(`items.${index}.description`)}
                           error={errors.items?.[index]?.description?.message}
+                          rows={3}
                           required
                         />
                       </div>
-                      <div className="md:col-span-2">
-                        <Input
-                          label={t('invoice.quantity')}
-                          type="number"
-                          step="0.01"
-                          {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                          error={errors.items?.[index]?.quantity?.message}
-                          required
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Input
-                          label={t('invoice.unit')}
-                          {...register(`items.${index}.unit`)}
-                          error={errors.items?.[index]?.unit?.message}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Input
-                          label={t('invoice.unitPrice')}
-                          type="number"
-                          step="0.01"
-                          {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                          error={errors.items?.[index]?.unit_price?.message}
-                          required
-                        />
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                        <div className="md:col-span-2">
+                          <Input
+                            label={t('invoice.quantity')}
+                            type="number"
+                            step="0.01"
+                            {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                            error={errors.items?.[index]?.quantity?.message}
+                            required
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Input
+                            label={t('invoice.unit')}
+                            {...register(`items.${index}.unit`)}
+                            error={errors.items?.[index]?.unit?.message}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Input
+                            label={t('invoice.unitPrice')}
+                            type="number"
+                            step="0.01"
+                            {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
+                            error={errors.items?.[index]?.unit_price?.message}
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="flex justify-between items-center mt-4">

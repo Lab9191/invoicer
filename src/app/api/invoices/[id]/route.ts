@@ -60,7 +60,7 @@ export async function GET(
     .from('invoice_items')
     .select('*')
     .eq('invoice_id', id)
-    .order('position', { ascending: true });
+    .order('sort_order', { ascending: true });
 
   return NextResponse.json({
     data: {
@@ -70,7 +70,7 @@ export async function GET(
   });
 }
 
-// PATCH /api/invoices/[id] - Update invoice
+// PATCH /api/invoices/[id] - Update invoice with items
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -78,6 +78,7 @@ export async function PATCH(
   const cookieStore = await cookies();
   const body = await request.json();
   const { id } = await params;
+  const { items, ...invoiceData } = body;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,9 +102,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  // Update invoice
+  const { data: invoice, error } = await supabase
     .from('invoices')
-    .update(body)
+    .update(invoiceData)
     .eq('id', id)
     .select()
     .single();
@@ -112,7 +114,64 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ data });
+  // If items are provided, update them
+  if (items && items.length > 0) {
+    // Delete old items
+    await supabase
+      .from('invoice_items')
+      .delete()
+      .eq('invoice_id', id);
+
+    // Insert new items
+    const itemsToInsert = items.map((item: any, index: number) => ({
+      ...item,
+      invoice_id: id,
+      sort_order: index,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(itemsToInsert);
+
+    if (itemsError) {
+      console.error('[API] Error updating items:', itemsError);
+      return NextResponse.json({ error: itemsError.message }, { status: 400 });
+    }
+  }
+
+  // Fetch complete invoice with items
+  const { data: completeInvoice } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      client:clients (
+        id,
+        name,
+        email,
+        address,
+        city,
+        postal_code,
+        country,
+        company_id,
+        tax_id,
+        vat_id
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  const { data: invoiceItems } = await supabase
+    .from('invoice_items')
+    .select('*')
+    .eq('invoice_id', id)
+    .order('sort_order', { ascending: true });
+
+  return NextResponse.json({
+    data: {
+      ...completeInvoice,
+      items: invoiceItems || [],
+    },
+  });
 }
 
 // DELETE /api/invoices/[id] - Delete invoice and its items

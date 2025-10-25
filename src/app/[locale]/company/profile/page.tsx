@@ -51,6 +51,8 @@ export default function CompanyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const {
     register,
@@ -82,6 +84,9 @@ export default function CompanyProfilePage() {
 
       if (data) {
         setProfile(data);
+        if (data.logo_url) {
+          setLogoPreview(data.logo_url);
+        }
         reset({
           name: data.name,
           email: data.email || '',
@@ -110,18 +115,51 @@ export default function CompanyProfilePage() {
     }
   }
 
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Logo file must be less than 2MB', 'error');
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      showToast('Please upload an image file', 'error');
+      return;
+    }
+
+    setLogoFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function onSubmit(data: ProfileFormData) {
     try {
       setSaving(true);
 
+      const profileData: any = { ...data };
+
+      // If logo was uploaded, add it to profile data
+      if (logoPreview && logoFile) {
+        profileData.logo_url = logoPreview;
+      }
+
       if (profile) {
         // Update existing profile
-        await updateProfile(profile.id, data);
+        await updateProfile(profile.id, profileData);
         showToast('Profile updated successfully', 'success');
       } else {
         // Create new profile
         await createProfile({
-          ...data,
+          ...profileData,
           profile_type: 'company',
         });
         showToast('Profile created successfully', 'success');
@@ -209,6 +247,50 @@ export default function CompanyProfilePage() {
                       error={errors.country?.message}
                     />
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Company Logo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload Logo
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      PNG, JPG up to 2MB. Recommended size: 400x200px
+                    </p>
+                  </div>
+
+                  {(logoPreview || profile?.logo_url) && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Preview
+                      </label>
+                      <div className="border rounded-lg p-4 bg-gray-50 max-w-sm">
+                        <img
+                          src={logoPreview || profile?.logo_url || ''}
+                          alt="Logo preview"
+                          className="max-h-24 object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

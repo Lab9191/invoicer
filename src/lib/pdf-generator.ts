@@ -14,6 +14,7 @@ export interface InvoiceData {
     registrationInfo?: string;
     phone?: string;
     email?: string;
+    logoUrl?: string;
   };
 
   client: {
@@ -63,6 +64,7 @@ const translations = {
     supplier: 'SUPPLIER',
     client: 'CLIENT',
     invoice: 'INVOICE',
+    invoiceNumber: 'Invoice No.',
     id: 'ID',
     taxId: 'Tax ID',
     vatId: 'VAT ID',
@@ -76,19 +78,21 @@ const translations = {
     unit: 'Unit',
     unitPrice: 'Unit price',
     total: 'Total',
-    invoiceTotal: 'TOTAL',
+    invoiceTotal: 'Total to pay',
     subtotal: 'Subtotal',
     vat: 'VAT',
     notVatPayer: 'The issuer is not a VAT payer.',
     issuedBy: 'Issued by',
     iban: 'IBAN',
-    swift: 'SWIFT',
+    swift: 'SWIFT/BIC',
     bankAccount: 'Bank account',
+    paymentDetails: 'Payment details',
   },
   sk: {
     supplier: 'DODÁVATEĽ',
     client: 'ODBERATEĽ',
     invoice: 'FAKTÚRA',
+    invoiceNumber: 'Číslo faktúry',
     id: 'IČO',
     taxId: 'DIČ',
     vatId: 'IČ DPH',
@@ -102,14 +106,15 @@ const translations = {
     unit: 'MJ',
     unitPrice: 'Cena/MJ',
     total: 'Celkom',
-    invoiceTotal: 'CELKOM',
+    invoiceTotal: 'Celkom na úhradu',
     subtotal: 'Medzisúčet',
     vat: 'DPH',
     notVatPayer: 'Nie sme platiteľmi DPH.',
     issuedBy: 'Vystavil',
     iban: 'IBAN',
-    swift: 'SWIFT',
+    swift: 'SWIFT/BIC',
     bankAccount: 'Číslo účtu',
+    paymentDetails: 'Platobné údaje',
   },
 };
 
@@ -117,308 +122,409 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
   const t = translations[data.language];
 
-  const leftMargin = 15;
-  const rightMargin = 195;
+  const margin = 15;
   const pageWidth = 210;
-  let yPos = 15;
+  const contentWidth = pageWidth - (margin * 2);
+  let y = margin;
 
-  // Set default font
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  // === LOGO (top right if available) ===
+  if (data.supplier.logoUrl) {
+    try {
+      // Logo will be 40mm wide, positioned in top right
+      const logoWidth = 40;
+      const logoHeight = 20; // Adjust based on aspect ratio
+      const logoX = pageWidth - margin - logoWidth;
+      doc.addImage(data.supplier.logoUrl, 'PNG', logoX, y, logoWidth, logoHeight);
+    } catch (error) {
+      console.error('Error adding logo:', error);
+    }
+  }
 
-  // === HEADER SECTION ===
-  // Supplier and Client in two columns
-  const colWidth = 85;
+  // === SUPPLIER & CLIENT INFO BOXES ===
+  // Two boxes side by side, taking equal width
+  const boxWidth = (contentWidth - 5) / 2;
+  const boxHeight = 45;
 
-  // Supplier column
+  // Supplier box (left)
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, y, boxWidth, boxHeight);
+
+  let boxY = y + 5;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text(t.supplier, leftMargin, yPos);
-
-  // Client column
-  doc.text(t.client, leftMargin + colWidth + 10, yPos);
-  yPos += 5;
+  doc.setTextColor(100, 100, 100);
+  doc.text(t.supplier, margin + 3, boxY);
+  boxY += 5;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(data.supplier.name, leftMargin, yPos);
-  doc.text(data.client.name, leftMargin + colWidth + 10, yPos);
-  yPos += 5;
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.supplier.name, margin + 3, boxY);
+  boxY += 5;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8);
 
-  // Supplier address
   if (data.supplier.registrationInfo) {
-    doc.setFontSize(8);
-    const regLines = doc.splitTextToSize(data.supplier.registrationInfo, colWidth);
-    regLines.forEach(line => {
-      doc.text(line, leftMargin, yPos);
-      yPos += 3.5;
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(7);
+
+    // Manually split by words to avoid spacing issues
+    const words = data.supplier.registrationInfo.split(' ');
+    let currentLine = '';
+    const maxWidth = boxWidth - 6;
+
+    words.forEach((word) => {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const textWidth = doc.getTextWidth(testLine);
+
+      if (textWidth > maxWidth && currentLine) {
+        doc.text(currentLine, margin + 3, boxY);
+        boxY += 3;
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
     });
-    doc.setFontSize(9);
+
+    // Print remaining line
+    if (currentLine) {
+      doc.text(currentLine, margin + 3, boxY);
+      boxY += 3;
+    }
+
+    boxY += 1;
+    doc.setFontSize(8);
   }
 
-  const supplierStartY = yPos;
-  doc.text(data.supplier.address, leftMargin, yPos);
-  doc.text(data.client.address, leftMargin + colWidth + 10, yPos);
-  yPos += 4;
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.supplier.address, margin + 3, boxY);
+  boxY += 3.5;
+  doc.text(`${data.supplier.postalCode} ${data.supplier.city}`, margin + 3, boxY);
+  boxY += 3.5;
+  doc.text(data.supplier.country, margin + 3, boxY);
+  boxY += 4;
 
-  doc.text(`${data.supplier.postalCode} ${data.supplier.city}`, leftMargin, yPos);
-  doc.text(`${data.client.postalCode} ${data.client.city}`, leftMargin + colWidth + 10, yPos);
-  yPos += 4;
-
-  doc.text(data.supplier.country, leftMargin, yPos);
-  doc.text(data.client.country, leftMargin + colWidth + 10, yPos);
-  yPos += 6;
-
-  // IDs
   if (data.supplier.companyId) {
-    doc.text(`${t.id}: ${data.supplier.companyId}`, leftMargin, yPos);
+    doc.text(`${t.id}: ${data.supplier.companyId}`, margin + 3, boxY);
+    boxY += 3;
   }
-  if (data.client.companyId) {
-    doc.text(`${t.id}: ${data.client.companyId}`, leftMargin + colWidth + 10, yPos);
-  }
-  yPos += 4;
-
   if (data.supplier.taxId) {
-    doc.text(`${t.taxId}: ${data.supplier.taxId}`, leftMargin, yPos);
+    doc.text(`${t.taxId}: ${data.supplier.taxId}`, margin + 3, boxY);
+    boxY += 3;
+  }
+  if (data.supplier.vatId) {
+    doc.text(`${t.vatId}: ${data.supplier.vatId}`, margin + 3, boxY);
+  }
+
+  // Client box (right)
+  const clientX = margin + boxWidth + 5;
+  doc.rect(clientX, y, boxWidth, boxHeight);
+
+  boxY = y + 5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text(t.client, clientX + 3, boxY);
+  boxY += 5;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.client.name, clientX + 3, boxY);
+  boxY += 5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(data.client.address, clientX + 3, boxY);
+  boxY += 3.5;
+  doc.text(`${data.client.postalCode} ${data.client.city}`, clientX + 3, boxY);
+  boxY += 3.5;
+  doc.text(data.client.country, clientX + 3, boxY);
+  boxY += 4;
+
+  if (data.client.companyId) {
+    doc.text(`${t.id}: ${data.client.companyId}`, clientX + 3, boxY);
+    boxY += 3;
   }
   if (data.client.taxId) {
-    doc.text(`${t.taxId}: ${data.client.taxId}`, leftMargin + colWidth + 10, yPos);
-  }
-  yPos += 4;
-
-  if (data.supplier.vatId) {
-    doc.text(`${t.vatId}: ${data.supplier.vatId}`, leftMargin, yPos);
+    doc.text(`${t.taxId}: ${data.client.taxId}`, clientX + 3, boxY);
+    boxY += 3;
   }
   if (data.client.vatId) {
-    doc.text(`${t.vatId}: ${data.client.vatId}`, leftMargin + colWidth + 10, yPos);
+    doc.text(`${t.vatId}: ${data.client.vatId}`, clientX + 3, boxY);
   }
 
-  yPos += 10;
+  y += boxHeight + 8;
 
-  // === INVOICE TITLE AND DETAILS ===
+  // === INVOICE TITLE & DETAILS BOX ===
+  const detailsBoxHeight = 20;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, y, contentWidth, detailsBoxHeight, 'F');
+  doc.setDrawColor(200, 200, 200);
+  doc.rect(margin, y, contentWidth, detailsBoxHeight);
+
+  let detailsY = y + 6;
+
+  // Invoice title (left)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(`${t.invoice} ${data.invoiceNumber}`, leftMargin, yPos);
-  yPos += 10;
+  doc.setTextColor(0, 0, 0);
+  doc.text(t.invoice, margin + 3, detailsY);
 
-  // Invoice details in right column
+  // Invoice number (right)
+  doc.setFontSize(16);
+  doc.text(data.invoiceNumber, pageWidth - margin - 3, detailsY, { align: 'right' });
+
+  detailsY += 7;
+
+  // Details in row
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  const detailsX = 120;
+  doc.setFontSize(8);
 
-  doc.text(`${t.issueDate}:`, detailsX, yPos);
-  doc.text(data.issueDate, detailsX + 30, yPos);
-  yPos += 4;
+  const detailsLeft = margin + 3;
+  const detailsMid = margin + (contentWidth / 2);
 
-  if (data.deliveryDate) {
-    doc.text(`${t.deliveryDate}:`, detailsX, yPos);
-    doc.text(data.deliveryDate, detailsX + 30, yPos);
-    yPos += 4;
-  }
+  doc.setTextColor(80, 80, 80);
+  doc.text(`${t.issueDate}:`, detailsLeft, detailsY);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.issueDate, detailsLeft + 30, detailsY);
 
-  doc.text(`${t.dueDate}:`, detailsX, yPos);
-  doc.text(data.dueDate, detailsX + 30, yPos);
-  yPos += 4;
+  doc.setTextColor(80, 80, 80);
+  doc.text(`${t.dueDate}:`, detailsMid, detailsY);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.dueDate, detailsMid + 30, detailsY);
 
-  doc.text(`${t.paymentReference}:`, detailsX, yPos);
-  doc.text(data.paymentReference, detailsX + 30, yPos);
-  yPos += 4;
-
-  doc.text(`${t.paymentMethod}:`, detailsX, yPos);
-  doc.text(data.paymentMethod, detailsX + 30, yPos);
-  yPos += 8;
+  y += detailsBoxHeight + 8;
 
   // === ITEMS TABLE ===
-  const tableTop = yPos;
-  const tableHeaders = [
-    { text: t.itemDescription, x: leftMargin, width: 90, align: 'left' },
-    { text: t.qty, x: 110, width: 15, align: 'right' },
-    { text: t.unit, x: 130, width: 15, align: 'right' },
-    { text: t.unitPrice, x: 155, width: 20, align: 'right' },
-    { text: t.total, x: rightMargin, width: 20, align: 'right' },
-  ];
-
   // Table header
-  doc.setFillColor(240, 240, 240);
-  doc.rect(leftMargin, yPos, rightMargin - leftMargin, 7, 'F');
+  doc.setFillColor(230, 230, 230);
+  const headerHeight = 7;
+  doc.rect(margin, y, contentWidth, headerHeight, 'F');
+
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  doc.line(margin, y + headerHeight, pageWidth - margin, y + headerHeight);
+
+  y += 5;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  yPos += 5;
+  doc.setFontSize(8);
+  doc.setTextColor(50, 50, 50);
 
-  tableHeaders.forEach(header => {
-    doc.text(header.text, header.x, yPos, { align: header.align as any });
-  });
+  // Column positions
+  const colDesc = margin + 2;
+  const colQty = pageWidth - margin - 90;
+  const colUnit = pageWidth - margin - 70;
+  const colPrice = pageWidth - margin - 50;
+  const colTotal = pageWidth - margin - 2;
 
-  yPos += 3;
-  doc.setLineWidth(0.5);
-  doc.line(leftMargin, yPos, rightMargin, yPos);
-  yPos += 4;
+  doc.text(t.itemDescription, colDesc, y);
+  doc.text(t.qty, colQty, y, { align: 'center' });
+  doc.text(t.unit, colUnit, y, { align: 'center' });
+  doc.text(t.unitPrice, colPrice, y, { align: 'right' });
+  doc.text(t.total, colTotal, y, { align: 'right' });
+
+  y += 4;
 
   // Table rows
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setLineWidth(0.1);
+  doc.setTextColor(0, 0, 0);
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(220, 220, 220);
 
   data.items.forEach((item, index) => {
-    // Check if we need a new page
-    if (yPos > 250) {
+    if (y > 250) {
       doc.addPage();
-      yPos = 20;
-      // Repeat header
-      doc.setFillColor(240, 240, 240);
-      doc.rect(leftMargin, yPos, rightMargin - leftMargin, 7, 'F');
-      doc.setFont('helvetica', 'bold');
-      yPos += 5;
-      tableHeaders.forEach(header => {
-        doc.text(header.text, header.x, yPos, { align: header.align as any });
-      });
-      yPos += 3;
-      doc.line(leftMargin, yPos, rightMargin, yPos);
-      yPos += 4;
-      doc.setFont('helvetica', 'normal');
+      y = margin;
     }
 
-    const startY = yPos;
+    const startY = y;
 
-    // Description with word wrap
-    const descLines = doc.splitTextToSize(item.description, 85);
-    descLines.forEach((line, lineIndex) => {
-      doc.text(line, leftMargin + 1, yPos + (lineIndex * 4));
+    // Handle multiline descriptions by splitting on newlines first
+    const descriptionLines = item.description.split('\n');
+    const allDescLines: string[] = [];
+    const descMaxWidth = colQty - colDesc - 5;
+
+    // Split each line by width, preserving manual line breaks
+    descriptionLines.forEach((line) => {
+      if (line.trim() === '') {
+        allDescLines.push(''); // Preserve empty lines
+      } else {
+        // Manually wrap to avoid spacing issues with Slovak text
+        const words = line.split(' ');
+        let currentLine = '';
+
+        words.forEach((word) => {
+          const testLine = currentLine + (currentLine ? ' ' : '') + word;
+          const textWidth = doc.getTextWidth(testLine);
+
+          if (textWidth > descMaxWidth && currentLine) {
+            allDescLines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        });
+
+        if (currentLine) {
+          allDescLines.push(currentLine);
+        }
+      }
     });
 
-    const descHeight = descLines.length * 4;
-    const rowHeight = Math.max(descHeight, 6);
-    const midY = startY + (rowHeight / 2);
+    const lineHeight = 4;
+    const rowHeight = Math.max(lineHeight * allDescLines.length, 7);
 
-    // Numeric values aligned to middle
-    doc.text(item.quantity.toFixed(2), 110, midY, { align: 'right' });
-    doc.text(item.unit, 130, midY, { align: 'right' });
-    doc.text(`€${item.unitPrice.toFixed(2)}`, 155, midY, { align: 'right' });
-    doc.text(`€${item.totalPrice.toFixed(2)}`, rightMargin, midY, { align: 'right' });
+    allDescLines.forEach((line: string, i: number) => {
+      doc.text(line, colDesc, y + (i * lineHeight));
+    });
 
-    yPos += rowHeight;
+    const midY = startY + (rowHeight / 2) + 1;
 
-    // Row border
-    doc.setDrawColor(220, 220, 220);
-    doc.line(leftMargin, yPos, rightMargin, yPos);
-    yPos += 2;
+    doc.text(item.quantity.toFixed(2), colQty, midY, { align: 'center' });
+    doc.text(item.unit, colUnit, midY, { align: 'center' });
+    doc.text(`€${item.unitPrice.toFixed(2)}`, colPrice, midY, { align: 'right' });
+    doc.text(`€${item.totalPrice.toFixed(2)}`, colTotal, midY, { align: 'right' });
+
+    y += rowHeight;
+
+    // Row separator line
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 2;
   });
 
   // === TOTALS SECTION ===
-  yPos += 5;
-  doc.setLineWidth(0.5);
-  doc.setDrawColor(0, 0, 0);
-  doc.line(leftMargin, yPos, rightMargin, yPos);
-  yPos += 6;
+  y += 3;
 
-  const totalsX = 140;
+  const totalsX = pageWidth - margin - 60;
+
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
 
   if (data.subtotal) {
-    doc.text(`${t.subtotal}:`, totalsX, yPos);
-    doc.text(`€${data.subtotal.toFixed(2)}`, rightMargin, yPos, { align: 'right' });
-    yPos += 5;
+    doc.setTextColor(80, 80, 80);
+    doc.text(`${t.subtotal}:`, totalsX, y);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`€${data.subtotal.toFixed(2)}`, colTotal, y, { align: 'right' });
+    y += 5;
   }
 
   if (data.vatAmount && data.vatAmount > 0) {
-    doc.text(`${t.vat}:`, totalsX, yPos);
-    doc.text(`€${data.vatAmount.toFixed(2)}`, rightMargin, yPos, { align: 'right' });
-    yPos += 5;
+    doc.setTextColor(80, 80, 80);
+    doc.text(`${t.vat}:`, totalsX, y);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`€${data.vatAmount.toFixed(2)}`, colTotal, y, { align: 'right' });
+    y += 5;
   }
 
-  // Total
+  // Total line
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.8);
+  doc.line(totalsX - 5, y - 1, pageWidth - margin, y - 1);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text(`${t.invoiceTotal}:`, totalsX, yPos);
-  doc.text(`€${data.totalAmount.toFixed(2)}`, rightMargin, yPos, { align: 'right' });
-  yPos += 8;
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`${t.invoiceTotal}:`, totalsX, y + 4);
+  doc.text(`€${data.totalAmount.toFixed(2)}`, colTotal, y + 4, { align: 'right' });
+
+  y += 10;
 
   // Not VAT payer note
   if (!data.isVatPayer) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(t.notVatPayer, leftMargin, yPos);
-    yPos += 6;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(t.notVatPayer, margin, y);
+    y += 6;
   }
 
   // Notes
   if (data.notes) {
-    doc.setFont('helvetica', 'italic');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    const notesLines = doc.splitTextToSize(data.notes, rightMargin - leftMargin);
-    notesLines.forEach(line => {
-      doc.text(line, leftMargin, yPos);
-      yPos += 3.5;
+    doc.setTextColor(80, 80, 80);
+    const notesLines = doc.splitTextToSize(data.notes, contentWidth - 10);
+    notesLines.forEach((line: string) => {
+      doc.text(line, margin, y);
+      y += 3.5;
     });
-    yPos += 3;
+    y += 3;
   }
 
-  // === PAYMENT INFO BOX ===
-  yPos += 5;
+  // === PAYMENT DETAILS BOX ===
+  y += 2;
+  const paymentBoxHeight = 25;
 
-  // Box with payment details
-  doc.setFillColor(245, 245, 245);
+  doc.setFillColor(250, 250, 250);
   doc.setDrawColor(200, 200, 200);
-  doc.roundedRect(leftMargin, yPos, rightMargin - leftMargin, 25, 2, 2, 'FD');
+  doc.setLineWidth(0.3);
+  doc.rect(margin, y, contentWidth - 30, paymentBoxHeight);
 
-  yPos += 5;
+  let paymentY = y + 5;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('Payment Details:', leftMargin + 3, yPos);
-  yPos += 5;
+  doc.setTextColor(0, 0, 0);
+  doc.text(t.paymentDetails, margin + 3, paymentY);
+  paymentY += 5;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
+  doc.setTextColor(60, 60, 60);
 
-  if (data.bank.name && data.bank.account) {
-    doc.text(`${t.bankAccount}: ${data.bank.account}`, leftMargin + 3, yPos);
-    yPos += 4;
-  }
-
-  doc.text(`${t.iban}: ${data.bank.iban}`, leftMargin + 3, yPos);
-  yPos += 4;
+  doc.text(`${t.iban}: ${data.bank.iban}`, margin + 3, paymentY);
+  paymentY += 4;
 
   if (data.bank.swift) {
-    doc.text(`${t.swift}: ${data.bank.swift}`, leftMargin + 3, yPos);
-    yPos += 4;
+    doc.text(`${t.swift}: ${data.bank.swift}`, margin + 3, paymentY);
+    paymentY += 4;
   }
 
-  doc.text(`${t.paymentReference}: ${data.paymentReference}`, leftMargin + 3, yPos);
+  doc.text(`${t.paymentReference}: ${data.paymentReference}`, margin + 3, paymentY);
 
-  // QR Code
+  // QR Code (right side of payment box)
   if (data.includeQrCode !== false) {
     try {
       const qrData = `SPD*1.0*ACC:${data.bank.iban}*AM:${data.totalAmount.toFixed(2)}*CC:EUR*MSG:${data.paymentReference}*X-VS:${data.paymentReference}`;
       const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
         width: 200,
-        margin: 1,
+        margin: 0,
         errorCorrectionLevel: 'M'
       });
-      doc.addImage(qrCodeDataUrl, 'PNG', rightMargin - 25, yPos - 18, 23, 23);
+
+      const qrSize = 23;
+      const qrX = pageWidth - margin - qrSize - 2;
+      const qrY = y + 1;
+      doc.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
     } catch (error) {
       console.error('Error generating QR code:', error);
     }
   }
 
   // === FOOTER ===
-  yPos = 280;
+  y = 277;
+
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 3;
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
+  doc.setTextColor(120, 120, 120);
 
-  const footerText = `${t.issuedBy}: ${data.supplier.name}`;
-  const footerDetails = [];
-  if (data.supplier.phone) footerDetails.push(data.supplier.phone);
-  if (data.supplier.email) footerDetails.push(data.supplier.email);
+  const footerParts = [];
+  if (data.supplier.email) footerParts.push(data.supplier.email);
+  if (data.supplier.phone) footerParts.push(data.supplier.phone);
 
-  doc.text(footerText, pageWidth / 2, yPos, { align: 'center' });
-  if (footerDetails.length > 0) {
-    doc.text(footerDetails.join(' | '), pageWidth / 2, yPos + 3, { align: 'center' });
+  if (footerParts.length > 0) {
+    doc.text(footerParts.join('  •  '), pageWidth / 2, y, { align: 'center' });
   }
 
   return doc.output('blob');

@@ -154,9 +154,10 @@ export async function POST(request: Request) {
 
   // Create invoice items
   if (items && items.length > 0) {
-    const itemsToInsert = items.map((item: any) => ({
+    const itemsToInsert = items.map((item: any, index: number) => ({
       ...item,
       invoice_id: invoice.id,
+      sort_order: index,
     }));
 
     console.log('[API] Inserting items:', itemsToInsert);

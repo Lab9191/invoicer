@@ -106,18 +106,19 @@ export async function createInvoice(
 }
 
 /**
- * Update an existing invoice
+ * Update an existing invoice with items
  */
 export async function updateInvoice(
   id: string,
-  updates: InvoiceUpdate
-): Promise<Invoice> {
+  updates: InvoiceUpdate,
+  items?: InvoiceItemInsert[]
+): Promise<InvoiceWithItems> {
   const response = await fetch(`/api/invoices/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(updates),
+    body: JSON.stringify({ ...updates, items }),
     credentials: 'include',
   });
 
@@ -180,7 +181,7 @@ export async function getNextInvoiceNumber(profileId: string): Promise<string> {
 /**
  * Calculate invoice totals
  */
-export function calculateInvoiceTotals(items: InvoiceItem[]): {
+export function calculateInvoiceTotals(items: InvoiceItem[], vatRate: number = 0): {
   subtotal: number;
   vat: number;
   total: number;
@@ -189,10 +190,7 @@ export function calculateInvoiceTotals(items: InvoiceItem[]): {
     return sum + (item.quantity * item.unit_price);
   }, 0);
 
-  const vat = items.reduce((sum, item) => {
-    const itemTotal = item.quantity * item.unit_price;
-    return sum + (itemTotal * (item.vat_rate / 100));
-  }, 0);
+  const vat = vatRate > 0 ? subtotal * (vatRate / 100) : 0;
 
   const total = subtotal + vat;
 

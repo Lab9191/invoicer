@@ -10,7 +10,10 @@
     "delete": "Vymazať",
     "edit": "Upraviť",
     "create": "Vytvoriť",
-    "export": "Exportovať PDF"
+    "export": "Exportovať PDF",
+    "view": "Zobraziť",
+    "loading": "Načítava sa...",
+    "back": "Späť"
   },
   "invoice": {
     "number": "Číslo faktúry",
@@ -24,7 +27,15 @@
     "quantity": "Počet",
     "unit": "Jednotka",
     "unitPrice": "Jednotková cena",
-    "price": "Cena"
+    "price": "Cena",
+    "subtotal": "Medzisúčet",
+    "vatAmount": "DPH",
+    "notes": "Poznámky",
+    "status": "Stav",
+    "paymentMethod": "Spôsob platby",
+    "paymentReference": "Variabilný symbol",
+    "language": "Jazyk",
+    "includeQrCode": "Zahrnúť QR kód"
   },
   "profile": {
     "name": "Názov",
@@ -36,10 +47,14 @@
     "taxId": "DIČ",
     "vatId": "IČ DPH",
     "bankAccount": "Bankový účet",
+    "bankName": "Názov banky",
     "iban": "IBAN",
     "swift": "SWIFT",
     "phone": "Telefón",
-    "email": "Email"
+    "email": "Email",
+    "registrationInfo": "Registračné informácie",
+    "isVatPayer": "Platca DPH",
+    "notes": "Poznámky"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -47,6 +62,40 @@
     "clients": "Klienti",
     "settings": "Nastavenia",
     "companyProfile": "Profil spoločnosti",
-    "individualProfile": "Profil fyzickej osoby"
+    "individualProfile": "Profil fyzickej osoby",
+    "profile": "Profil"
+  },
+  "status": {
+    "draft": "Návrh",
+    "sent": "Odoslané",
+    "paid": "Zaplatené",
+    "overdue": "Po splatnosti",
+    "cancelled": "Zrušené"
+  },
+  "messages": {
+    "success": {
+      "profileCreated": "Profil bol úspešne vytvorený",
+      "profileUpdated": "Profil bol úspešne aktualizovaný",
+      "clientCreated": "Klient bol úspešne vytvorený",
+      "clientUpdated": "Klient bol úspešne aktualizovaný",
+      "clientDeleted": "Klient bol úspešne vymazaný",
+      "invoiceCreated": "Faktúra bola úspešne vytvorená",
+      "invoiceUpdated": "Faktúra bola úspešne aktualizovaná",
+      "invoiceDeleted": "Faktúra bola úspešne vymazaná",
+      "pdfExported": "PDF bol úspešne exportovaný"
+    },
+    "error": {
+      "loadProfile": "Nepodarilo sa načítať profil",
+      "saveProfile": "Nepodarilo sa uložiť profil",
+      "loadClients": "Nepodarilo sa načítať klientov",
+      "saveClient": "Nepodarilo sa uložiť klienta",
+      "deleteClient": "Nepodarilo sa vymazať klienta",
+      "loadInvoices": "Nepodarilo sa načítať faktúry",
+      "loadInvoice": "Nepodarilo sa načítať faktúru",
+      "saveInvoice": "Nepodarilo sa uložiť faktúru",
+      "deleteInvoice": "Nepodarilo sa vymazať faktúru",
+      "exportPdf": "Nepodarilo sa exportovať PDF",
+      "notFound": "Nenájdené"
+    }
   }
 }

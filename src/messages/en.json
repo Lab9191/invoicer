@@ -10,7 +10,10 @@
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",
-    "export": "Export PDF"
+    "export": "Export PDF",
+    "view": "View",
+    "loading": "Loading...",
+    "back": "Back"
   },
   "invoice": {
     "number": "Invoice Number",
@@ -24,7 +27,15 @@
     "quantity": "Quantity",
     "unit": "Unit",
     "unitPrice": "Unit Price",
-    "price": "Price"
+    "price": "Price",
+    "subtotal": "Subtotal",
+    "vatAmount": "VAT Amount",
+    "notes": "Notes",
+    "status": "Status",
+    "paymentMethod": "Payment Method",
+    "paymentReference": "Payment Reference",
+    "language": "Language",
+    "includeQrCode": "Include QR Code"
   },
   "profile": {
     "name": "Name",
@@ -36,10 +47,14 @@
     "taxId": "Tax ID",
     "vatId": "VAT ID",
     "bankAccount": "Bank Account",
+    "bankName": "Bank Name",
     "iban": "IBAN",
     "swift": "SWIFT",
     "phone": "Phone",
-    "email": "Email"
+    "email": "Email",
+    "registrationInfo": "Registration Info",
+    "isVatPayer": "VAT Payer",
+    "notes": "Notes"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -47,6 +62,40 @@
     "clients": "Clients",
     "settings": "Settings",
     "companyProfile": "Company Profile",
-    "individualProfile": "Individual Profile"
+    "individualProfile": "Individual Profile",
+    "profile": "Profile"
+  },
+  "status": {
+    "draft": "Draft",
+    "sent": "Sent",
+    "paid": "Paid",
+    "overdue": "Overdue",
+    "cancelled": "Cancelled"
+  },
+  "messages": {
+    "success": {
+      "profileCreated": "Profile created successfully",
+      "profileUpdated": "Profile updated successfully",
+      "clientCreated": "Client created successfully",
+      "clientUpdated": "Client updated successfully",
+      "clientDeleted": "Client deleted successfully",
+      "invoiceCreated": "Invoice created successfully",
+      "invoiceUpdated": "Invoice updated successfully",
+      "invoiceDeleted": "Invoice deleted successfully",
+      "pdfExported": "PDF exported successfully"
+    },
+    "error": {
+      "loadProfile": "Failed to load profile",
+      "saveProfile": "Failed to save profile",
+      "loadClients": "Failed to load clients",
+      "saveClient": "Failed to save client",
+      "deleteClient": "Failed to delete client",
+      "loadInvoices": "Failed to load invoices",
+      "loadInvoice": "Failed to load invoice",
+      "saveInvoice": "Failed to save invoice",
+      "deleteInvoice": "Failed to delete invoice",
+      "exportPdf": "Failed to export PDF",
+      "notFound": "Not found"
+    }
   }
 }

@@ -107,6 +107,12 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { items, ...invoiceData } = body;
 
+  console.log('[API] Creating invoice with data:', {
+    invoiceData,
+    itemsCount: items?.length || 0,
+    items: items,
+  });
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -126,8 +132,11 @@ export async function POST(request: Request) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    console.error('[API] Unauthorized - no user');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  console.log('[API] User authenticated:', user.id);
 
   // Create invoice
   const { data: invoice, error: invoiceError } = await supabase
@@ -137,8 +146,11 @@ export async function POST(request: Request) {
     .single();
 
   if (invoiceError) {
+    console.error('[API] Error creating invoice:', invoiceError);
     return NextResponse.json({ error: invoiceError.message }, { status: 400 });
   }
+
+  console.log('[API] Invoice created:', invoice.id);
 
   // Create invoice items
   if (items && items.length > 0) {
@@ -147,15 +159,28 @@ export async function POST(request: Request) {
       invoice_id: invoice.id,
     }));
 
-    const { error: itemsError } = await supabase
+    console.log('[API] Inserting items:', itemsToInsert);
+
+    const { data: insertedItems, error: itemsError } = await supabase
       .from('invoice_items')
-      .insert(itemsToInsert);
+      .insert(itemsToInsert)
+      .select();
 
     if (itemsError) {
+      console.error('[API] Error inserting items:', {
+        error: itemsError,
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+      });
       // Rollback: delete the invoice
       await supabase.from('invoices').delete().eq('id', invoice.id);
       return NextResponse.json({ error: itemsError.message }, { status: 400 });
     }
+
+    console.log('[API] Items inserted successfully:', insertedItems?.length || 0);
+  } else {
+    console.log('[API] No items to insert');
   }
 
   // Fetch the complete invoice with items

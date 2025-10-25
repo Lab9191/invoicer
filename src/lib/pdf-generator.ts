@@ -238,19 +238,55 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
   doc.line(leftMargin, yPos, rightMargin, yPos);
   yPos += 5;
 
-  // Items
+  // Items with better formatting
   doc.setFont('helvetica', 'normal');
-  data.items.forEach(item => {
+  doc.setFontSize(9);
+
+  data.items.forEach((item, index) => {
+    // Check if we need a new page
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+
+      // Repeat table header on new page
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.itemDescription, leftMargin, yPos);
+      doc.text(t.qty, 140, yPos, { align: 'right' });
+      doc.text(t.unit, 155, yPos, { align: 'right' });
+      doc.text(t.unitPrice, 175, yPos, { align: 'right' });
+      doc.text(t.total, rightMargin, yPos, { align: 'right' });
+      yPos += 5;
+      doc.line(leftMargin, yPos, rightMargin, yPos);
+      yPos += 5;
+      doc.setFont('helvetica', 'normal');
+    }
+
+    const startY = yPos;
+
+    // Split description into lines with proper width
     const descLines = doc.splitTextToSize(item.description, 115);
-    doc.text(descLines, leftMargin, yPos);
-    const lineHeight = descLines.length * 4;
+    descLines.forEach((line, lineIndex) => {
+      doc.text(line, leftMargin, yPos + (lineIndex * 4));
+    });
 
-    doc.text(item.quantity.toFixed(2), 140, yPos, { align: 'right' });
-    doc.text(item.unit, 155, yPos, { align: 'right' });
-    doc.text(item.unitPrice.toFixed(2) + ' €', 175, yPos, { align: 'right' });
-    doc.text(item.totalPrice.toFixed(2) + ' €', rightMargin, yPos, { align: 'right' });
+    const descHeight = descLines.length * 4;
 
-    yPos += Math.max(lineHeight, 8);
+    // Align numeric values to the middle of description block
+    const midY = startY + (descHeight / 2);
+    doc.text(item.quantity.toFixed(2), 140, midY, { align: 'right' });
+    doc.text(item.unit, 155, midY, { align: 'right' });
+    doc.text(item.unitPrice.toFixed(2) + ' €', 175, midY, { align: 'right' });
+    doc.text(item.totalPrice.toFixed(2) + ' €', rightMargin, midY, { align: 'right' });
+
+    yPos += Math.max(descHeight, 8);
+
+    // Add subtle line between items (except last)
+    if (index < data.items.length - 1) {
+      doc.setDrawColor(220, 220, 220);
+      doc.line(leftMargin, yPos, rightMargin, yPos);
+      doc.setDrawColor(0, 0, 0);
+      yPos += 3;
+    }
   });
 
   yPos += 5;

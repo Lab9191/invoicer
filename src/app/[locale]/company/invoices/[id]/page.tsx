@@ -23,6 +23,8 @@ export default function InvoiceViewPage() {
 
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [invoice, setInvoice] = useState<InvoiceWithItems | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -51,13 +53,10 @@ export default function InvoiceViewPage() {
     }
   }
 
-  async function handleExportPDF() {
-    if (!invoice || !profile) return;
+  function getPdfData(): InvoiceData | null {
+    if (!invoice || !profile) return null;
 
-    try {
-      setExporting(true);
-
-      const pdfData: InvoiceData = {
+    return {
         supplier: {
           name: profile.name,
           address: profile.address || '',
@@ -108,7 +107,14 @@ export default function InvoiceViewPage() {
         includeQrCode: invoice.include_qr_code !== false,
         isVatPayer: profile.is_vat_payer || false,
       };
+  }
 
+  async function handleExportPDF() {
+    const pdfData = getPdfData();
+    if (!pdfData || !invoice) return;
+
+    try {
+      setExporting(true);
       const pdfBlob = await generateInvoicePDF(pdfData);
       downloadPDF(pdfBlob, `invoice-${invoice.invoice_number}.pdf`);
       showToast('PDF exported successfully', 'success');
@@ -117,6 +123,30 @@ export default function InvoiceViewPage() {
       showToast('Failed to export PDF', 'error');
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handlePreviewPDF() {
+    const pdfData = getPdfData();
+    if (!pdfData) return;
+
+    try {
+      setPreviewing(true);
+      const pdfBlob = await generateInvoicePDF(pdfData);
+      const url = URL.createObjectURL(pdfBlob);
+      setPdfPreviewUrl(url);
+    } catch (error) {
+      console.error('Error previewing PDF:', error);
+      showToast('Failed to preview PDF', 'error');
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  function closePreview() {
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
     }
   }
 
@@ -171,6 +201,13 @@ export default function InvoiceViewPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={handlePreviewPDF}
+              isLoading={previewing}
+            >
+              Preview PDF
+            </Button>
             <Button
               variant="secondary"
               onClick={handleExportPDF}
@@ -338,6 +375,36 @@ export default function InvoiceViewPage() {
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* PDF Preview Modal */}
+        {pdfPreviewUrl && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={closePreview}
+          >
+            <div
+              className="bg-white rounded-lg w-full max-w-4xl h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-4 border-b">
+                <h2 className="text-xl font-bold">PDF Preview</h2>
+                <button
+                  onClick={closePreview}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <iframe
+                  src={pdfPreviewUrl}
+                  className="w-full h-full"
+                  title="PDF Preview"
+                />
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

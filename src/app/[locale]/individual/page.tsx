@@ -43,10 +43,10 @@ export default function IndividualPage() {
         {/* Quick Actions Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {/* Profile Card */}
-          <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <Link href="/en/individual/profile" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow block">
             <div className="flex items-center justify-between mb-4">
               <div className="text-3xl">⚙️</div>
-              <span className="text-xs text-gray-500">Coming Soon</span>
+              <span className="text-xs text-green-600 font-medium">Ready</span>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {t('nav.individualProfile')}
@@ -54,19 +54,16 @@ export default function IndividualPage() {
             <p className="text-gray-600 text-sm mb-4">
               Set up your personal information and bank account details
             </p>
-            <button
-              disabled
-              className="w-full bg-gray-100 text-gray-400 py-2 px-4 rounded-lg cursor-not-allowed"
-            >
+            <div className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg text-center hover:bg-purple-700 transition-colors">
               Configure Profile
-            </button>
-          </div>
+            </div>
+          </Link>
 
           {/* Clients Card */}
-          <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <Link href="/en/individual/clients" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow block">
             <div className="flex items-center justify-between mb-4">
               <div className="text-3xl">👥</div>
-              <span className="text-xs text-gray-500">Coming Soon</span>
+              <span className="text-xs text-green-600 font-medium">Ready</span>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {t('nav.clients')}
@@ -74,19 +71,16 @@ export default function IndividualPage() {
             <p className="text-gray-600 text-sm mb-4">
               Add and manage your clients and their contact information
             </p>
-            <button
-              disabled
-              className="w-full bg-gray-100 text-gray-400 py-2 px-4 rounded-lg cursor-not-allowed"
-            >
+            <div className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg text-center hover:bg-purple-700 transition-colors">
               Manage Clients
-            </button>
-          </div>
+            </div>
+          </Link>
 
           {/* Invoices Card */}
-          <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+          <Link href="/en/individual/invoices" className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow block">
             <div className="flex items-center justify-between mb-4">
               <div className="text-3xl">📄</div>
-              <span className="text-xs text-gray-500">Coming Soon</span>
+              <span className="text-xs text-green-600 font-medium">Ready</span>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {t('nav.invoices')}
@@ -94,38 +88,33 @@ export default function IndividualPage() {
             <p className="text-gray-600 text-sm mb-4">
               Create, edit, and export professional invoices with QR codes
             </p>
-            <button
-              disabled
-              className="w-full bg-gray-100 text-gray-400 py-2 px-4 rounded-lg cursor-not-allowed"
-            >
+            <div className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg text-center hover:bg-purple-700 transition-colors">
               View Invoices
-            </button>
-          </div>
+            </div>
+          </Link>
         </div>
 
         {/* Info Section */}
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
           <div className="flex items-start">
-            <div className="text-3xl mr-4">ℹ️</div>
+            <div className="text-3xl mr-4">✅</div>
             <div>
-              <h3 className="text-lg font-semibold text-purple-900 mb-2">
-                Getting Started
+              <h3 className="text-lg font-semibold text-green-900 mb-2">
+                Ready to Use!
               </h3>
-              <p className="text-purple-800 mb-4">
-                This is the Individual workspace. Here you can:
+              <p className="text-green-800 mb-4">
+                This is your Individual workspace. All features are fully functional:
               </p>
-              <ul className="list-disc list-inside text-purple-800 space-y-2">
+              <ul className="list-disc list-inside text-green-800 space-y-2">
                 <li>Set up your personal profile with trade license details</li>
-                <li>Add clients and their information</li>
-                <li>Create simple invoices for freelance work</li>
+                <li>Add and manage clients with their information</li>
+                <li>Create professional invoices for freelance work</li>
                 <li>Export invoices to PDF with QR codes for payment</li>
-                <li>Support for English and Slovak languages</li>
+                <li>Full support for English and Slovak languages</li>
               </ul>
-              <div className="mt-6 p-4 bg-white rounded-lg border border-purple-300">
+              <div className="mt-6 p-4 bg-white rounded-lg border border-green-300">
                 <p className="text-sm text-gray-700">
-                  <strong>🚧 Under Development</strong>
-                  <br />
-                  The full functionality is being implemented. These pages are placeholders showing the planned features.
+                  <strong>💡 Quick Start:</strong> Begin by setting up your personal profile, then add your first client, and start creating invoices!
                 </p>
               </div>
             </div>

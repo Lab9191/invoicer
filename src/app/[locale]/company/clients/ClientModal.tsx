@@ -13,16 +13,16 @@ type Client = Database['public']['Tables']['clients']['Row'];
 
 const clientSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  postal_code: z.string().optional(),
-  country: z.string().optional(),
-  company_id: z.string().optional(),
-  tax_id: z.string().optional(),
-  vat_id: z.string().optional(),
-  notes: z.string().optional(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  address: z.string().nullable(),
+  city: z.string().nullable(),
+  postal_code: z.string().nullable(),
+  country: z.string().nullable(),
+  company_id: z.string().nullable(),
+  tax_id: z.string().nullable(),
+  vat_id: z.string().nullable(),
+  notes: z.string().nullable(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;

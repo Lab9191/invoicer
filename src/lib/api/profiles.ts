@@ -9,19 +9,23 @@ type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
  * Get profile by user ID and profile type
  */
 export async function getProfile(userId: string, profileType: 'company' | 'individual'): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('profile_type', profileType)
-    .single();
+  try {
+    const response = await fetch(`/api/profiles/${profileType}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
 
-  if (error) {
+    if (!response.ok) {
+      console.error('Error fetching profile:', await response.text());
+      return null;
+    }
+
+    const { data } = await response.json();
+    return data;
+  } catch (error) {
     console.error('Error fetching profile:', error);
     return null;
   }
-
-  return data;
 }
 
 /**

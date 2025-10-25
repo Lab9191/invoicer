@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardContent, Input, Textarea, Select, Button, Spinner, useToast } from '@/components/ui';
-import { getProfile, getClients, createInvoice, generateInvoiceNumber } from '@/lib/api';
+import { getProfile, getClients, createInvoice, getNextInvoiceNumber } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
 import type { Database } from '@/lib/database.types';
 
@@ -100,7 +100,7 @@ export default function NewInvoicePage() {
         setClients(clientsData);
 
         // Generate invoice number
-        const invoiceNumber = await generateInvoiceNumber(profile.id);
+        const invoiceNumber = await getNextInvoiceNumber(profile.id);
         setValue('invoice_number', invoiceNumber);
       }
     } catch (error) {

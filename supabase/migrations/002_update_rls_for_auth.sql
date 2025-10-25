@@ -1,20 +1,24 @@
 -- Migration: Update RLS policies to use Supabase Auth
 -- This migration updates all Row Level Security policies to use real user authentication
 -- instead of allowing all operations
+--
+-- NOTE: This migration is idempotent - safe to run multiple times
 
 -- =============================================================================
 -- PROFILES TABLE - RLS Policies
 -- =============================================================================
 
--- Drop old policies
+-- Drop ALL possible old policies (safe with IF EXISTS)
 DROP POLICY IF EXISTS "Users can view their own profiles" ON profiles;
 DROP POLICY IF EXISTS "Users can create their own profiles" ON profiles;
 DROP POLICY IF EXISTS "Users can update their own profiles" ON profiles;
+DROP POLICY IF EXISTS "Users can delete their own profiles" ON profiles;
 DROP POLICY IF EXISTS "Allow all to read profiles" ON profiles;
 DROP POLICY IF EXISTS "Allow all to insert profiles" ON profiles;
 DROP POLICY IF EXISTS "Allow all to update profiles" ON profiles;
+DROP POLICY IF EXISTS "Allow all to delete profiles" ON profiles;
 
--- Create new secure policies
+-- Create new secure policies (will only create if not exists due to drop above)
 CREATE POLICY "Users can view their own profiles"
   ON profiles FOR SELECT
   USING (auth.uid() = user_id);
@@ -35,9 +39,12 @@ CREATE POLICY "Users can delete their own profiles"
 -- CLIENTS TABLE - RLS Policies
 -- =============================================================================
 
--- Drop old policies
-DROP POLICY IF EXISTS "Users can view clients for their profiles" ON clients;
+-- Drop ALL possible old policies
+DROP POLICY IF EXISTS "Users can view their own clients" ON clients;
 DROP POLICY IF EXISTS "Users can create clients for their profiles" ON clients;
+DROP POLICY IF EXISTS "Users can update their own clients" ON clients;
+DROP POLICY IF EXISTS "Users can delete their own clients" ON clients;
+DROP POLICY IF EXISTS "Users can view clients for their profiles" ON clients;
 DROP POLICY IF EXISTS "Users can update clients for their profiles" ON clients;
 DROP POLICY IF EXISTS "Users can delete clients for their profiles" ON clients;
 DROP POLICY IF EXISTS "Allow all to read clients" ON clients;
@@ -90,9 +97,12 @@ CREATE POLICY "Users can delete their own clients"
 -- INVOICES TABLE - RLS Policies
 -- =============================================================================
 
--- Drop old policies
-DROP POLICY IF EXISTS "Users can view invoices for their profiles" ON invoices;
+-- Drop ALL possible old policies
+DROP POLICY IF EXISTS "Users can view their own invoices" ON invoices;
 DROP POLICY IF EXISTS "Users can create invoices for their profiles" ON invoices;
+DROP POLICY IF EXISTS "Users can update their own invoices" ON invoices;
+DROP POLICY IF EXISTS "Users can delete their own invoices" ON invoices;
+DROP POLICY IF EXISTS "Users can view invoices for their profiles" ON invoices;
 DROP POLICY IF EXISTS "Users can update invoices for their profiles" ON invoices;
 DROP POLICY IF EXISTS "Users can delete invoices for their profiles" ON invoices;
 DROP POLICY IF EXISTS "Allow all to read invoices" ON invoices;
@@ -145,7 +155,11 @@ CREATE POLICY "Users can delete their own invoices"
 -- INVOICE_ITEMS TABLE - RLS Policies
 -- =============================================================================
 
--- Drop old policies
+-- Drop ALL possible old policies
+DROP POLICY IF EXISTS "Users can view their own invoice items" ON invoice_items;
+DROP POLICY IF EXISTS "Users can create invoice items for their invoices" ON invoice_items;
+DROP POLICY IF EXISTS "Users can update their own invoice items" ON invoice_items;
+DROP POLICY IF EXISTS "Users can delete their own invoice items" ON invoice_items;
 DROP POLICY IF EXISTS "Users can view items for their invoices" ON invoice_items;
 DROP POLICY IF EXISTS "Users can create items for their invoices" ON invoice_items;
 DROP POLICY IF EXISTS "Users can update items for their invoices" ON invoice_items;

@@ -111,15 +111,8 @@ export default function IndividualProfilePage() {
         await updateProfile(profile.id, data);
         showToast('Profile updated successfully', 'success');
       } else {
-        const user = await getCurrentUser();
-        if (!user) {
-          showToast('Please log in', 'error');
-          router.push(`/${locale}/auth/login`);
-          return;
-        }
         await createProfile({
           ...data,
-          user_id: user.id,
           profile_type: 'individual',
         });
         showToast('Profile created successfully', 'success');
@@ -127,7 +120,8 @@ export default function IndividualProfilePage() {
       }
     } catch (error) {
       console.error('Error saving profile:', error);
-      showToast('Failed to save profile', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showToast(`Failed to save profile: ${errorMessage}`, 'error');
     } finally {
       setSaving(false);
     }

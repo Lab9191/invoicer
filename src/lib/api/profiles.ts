@@ -46,37 +46,46 @@ export async function getProfileById(id: string): Promise<Profile | null> {
  * Create a new profile
  */
 export async function createProfile(profile: ProfileInsert): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .insert(profile)
-    .select()
-    .single();
+  const response = await fetch('/api/profiles', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(profile),
+    credentials: 'include',
+  });
 
-  if (error) {
-    console.error('Error creating profile:', error);
-    throw new Error(error.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    console.error('Error creating profile:', result.error);
+    throw new Error(result.error || 'Failed to create profile');
   }
 
-  return data;
+  return result.data;
 }
 
 /**
  * Update an existing profile
  */
 export async function updateProfile(id: string, updates: ProfileUpdate): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  const response = await fetch(`/api/profiles/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+    credentials: 'include',
+  });
 
-  if (error) {
-    console.error('Error updating profile:', error);
-    throw new Error(error.message);
+  const result = await response.json();
+
+  if (!response.ok) {
+    console.error('Error updating profile:', result.error);
+    throw new Error(result.error || 'Failed to update profile');
   }
 
-  return data;
+  return result.data;
 }
 
 /**

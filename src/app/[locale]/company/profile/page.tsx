@@ -120,15 +120,8 @@ export default function CompanyProfilePage() {
         showToast('Profile updated successfully', 'success');
       } else {
         // Create new profile
-        const user = await getCurrentUser();
-        if (!user) {
-          showToast('Please log in', 'error');
-          router.push(`/${locale}/auth/login`);
-          return;
-        }
         await createProfile({
           ...data,
-          user_id: user.id,
           profile_type: 'company',
         });
         showToast('Profile created successfully', 'success');
@@ -136,7 +129,8 @@ export default function CompanyProfilePage() {
       }
     } catch (error) {
       console.error('Error saving profile:', error);
-      showToast('Failed to save profile', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showToast(`Failed to save profile: ${errorMessage}`, 'error');
     } finally {
       setSaving(false);
     }

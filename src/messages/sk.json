@@ -1,0 +1,52 @@
+{
+  "common": {
+    "invoice": "Faktúra",
+    "supplier": "Dodávateľ",
+    "client": "Odberateľ",
+    "company": "Spoločnosť",
+    "individual": "Fyzická osoba",
+    "save": "Uložiť",
+    "cancel": "Zrušiť",
+    "delete": "Vymazať",
+    "edit": "Upraviť",
+    "create": "Vytvoriť",
+    "export": "Exportovať PDF"
+  },
+  "invoice": {
+    "number": "Číslo faktúry",
+    "issueDate": "Dátum vystavenia",
+    "deliveryDate": "Dátum dodania",
+    "dueDate": "Dátum splatnosti",
+    "total": "Celková suma",
+    "items": "Položky",
+    "addItem": "Pridať položku",
+    "description": "Popis",
+    "quantity": "Počet",
+    "unit": "Jednotka",
+    "unitPrice": "Jednotková cena",
+    "price": "Cena"
+  },
+  "profile": {
+    "name": "Názov",
+    "address": "Adresa",
+    "city": "Mesto",
+    "postalCode": "PSČ",
+    "country": "Krajina",
+    "companyId": "IČO",
+    "taxId": "DIČ",
+    "vatId": "IČ DPH",
+    "bankAccount": "Bankový účet",
+    "iban": "IBAN",
+    "swift": "SWIFT",
+    "phone": "Telefón",
+    "email": "Email"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "invoices": "Faktúry",
+    "clients": "Klienti",
+    "settings": "Nastavenia",
+    "companyProfile": "Profil spoločnosti",
+    "individualProfile": "Profil fyzickej osoby"
+  }
+}

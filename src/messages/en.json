@@ -1,0 +1,52 @@
+{
+  "common": {
+    "invoice": "Invoice",
+    "supplier": "Supplier",
+    "client": "Client",
+    "company": "Company",
+    "individual": "Individual",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "export": "Export PDF"
+  },
+  "invoice": {
+    "number": "Invoice Number",
+    "issueDate": "Issue Date",
+    "deliveryDate": "Delivery Date",
+    "dueDate": "Due Date",
+    "total": "Total",
+    "items": "Items",
+    "addItem": "Add Item",
+    "description": "Description",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "unitPrice": "Unit Price",
+    "price": "Price"
+  },
+  "profile": {
+    "name": "Name",
+    "address": "Address",
+    "city": "City",
+    "postalCode": "Postal Code",
+    "country": "Country",
+    "companyId": "Company ID",
+    "taxId": "Tax ID",
+    "vatId": "VAT ID",
+    "bankAccount": "Bank Account",
+    "iban": "IBAN",
+    "swift": "SWIFT",
+    "phone": "Phone",
+    "email": "Email"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "clients": "Clients",
+    "settings": "Settings",
+    "companyProfile": "Company Profile",
+    "individualProfile": "Individual Profile"
+  }
+}

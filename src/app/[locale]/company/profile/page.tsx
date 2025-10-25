@@ -14,6 +14,7 @@ import { Button } from '@/components/ui';
 import { Spinner } from '@/components/ui';
 import { useToast } from '@/components/ui';
 import { getProfile, createProfile, updateProfile } from '@/lib/api';
+import { getCurrentUser } from '@/lib/auth';
 import type { Database } from '@/lib/database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -71,10 +72,13 @@ export default function CompanyProfilePage() {
   async function loadProfile() {
     try {
       setLoading(true);
-      // In a real app, you'd get the user_id from auth
-      // For now, we'll use a mock user_id
-      const mockUserId = 'mock-user-id';
-      const data = await getProfile(mockUserId, 'company');
+      const user = await getCurrentUser();
+      if (!user) {
+        showToast('Please log in', 'error');
+        router.push(`/${locale}/auth/login`);
+        return;
+      }
+      const data = await getProfile(user.id, 'company');
 
       if (data) {
         setProfile(data);
@@ -116,10 +120,15 @@ export default function CompanyProfilePage() {
         showToast('Profile updated successfully', 'success');
       } else {
         // Create new profile
-        const mockUserId = 'mock-user-id';
+        const user = await getCurrentUser();
+        if (!user) {
+          showToast('Please log in', 'error');
+          router.push(`/${locale}/auth/login`);
+          return;
+        }
         await createProfile({
           ...data,
-          user_id: mockUserId,
+          user_id: user.id,
           profile_type: 'company',
         });
         showToast('Profile created successfully', 'success');

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui';
 import { Spinner } from '@/components/ui';
 import { useToast } from '@/components/ui';
 import { getProfile, createProfile, updateProfile } from '@/lib/api';
+import { getCurrentUser } from '@/lib/auth';
 import type { Database } from '@/lib/database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -67,8 +68,13 @@ export default function IndividualProfilePage() {
   async function loadProfile() {
     try {
       setLoading(true);
-      const mockUserId = 'mock-user-id';
-      const data = await getProfile(mockUserId, 'individual');
+      const user = await getCurrentUser();
+      if (!user) {
+        showToast('Please log in', 'error');
+        router.push(`/${locale}/auth/login`);
+        return;
+      }
+      const data = await getProfile(user.id, 'individual');
 
       if (data) {
         setProfile(data);
@@ -105,10 +111,15 @@ export default function IndividualProfilePage() {
         await updateProfile(profile.id, data);
         showToast('Profile updated successfully', 'success');
       } else {
-        const mockUserId = 'mock-user-id';
+        const user = await getCurrentUser();
+        if (!user) {
+          showToast('Please log in', 'error');
+          router.push(`/${locale}/auth/login`);
+          return;
+        }
         await createProfile({
           ...data,
-          user_id: mockUserId,
+          user_id: user.id,
           profile_type: 'individual',
         });
         showToast('Profile created successfully', 'success');

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import {
   Card,
@@ -20,6 +20,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { getClients, deleteClient, getProfile } from '@/lib/api';
+import { getCurrentUser } from '@/lib/auth';
 import type { Database } from '@/lib/database.types';
 import { ClientModal } from './ClientModal';
 
@@ -28,6 +29,7 @@ type Client = Database['public']['Tables']['clients']['Row'];
 export default function ClientsPage() {
   const t = useTranslations();
   const params = useParams();
+  const router = useRouter();
   const { showToast } = useToast();
   const locale = params.locale as string;
 
@@ -45,8 +47,13 @@ export default function ClientsPage() {
   async function loadProfileAndClients() {
     try {
       setLoading(true);
-      const mockUserId = 'mock-user-id';
-      const profile = await getProfile(mockUserId, 'company');
+      const user = await getCurrentUser();
+      if (!user) {
+        showToast('Please log in', 'error');
+        router.push(`/${locale}/auth/login`);
+        return;
+      }
+      const profile = await getProfile(user.id, 'company');
 
       if (profile) {
         setProfileId(profile.id);

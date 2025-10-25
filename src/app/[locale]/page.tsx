@@ -1,13 +1,59 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { getCurrentUser } from '@/lib/auth';
+import { Spinner } from '@/components/ui';
 
 export default function Home() {
   const t = useTranslations();
+  const params = useParams();
+  const locale = params.locale as string;
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  async function checkAuth() {
+    const user = await getCurrentUser();
+    setIsAuthenticated(!!user);
+    setLoading(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
+          {/* Header with Auth buttons */}
+          {!isAuthenticated && (
+            <div className="flex justify-end mb-4 gap-3">
+              <Link
+                href={`/${locale}/auth/login`}
+                className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Login
+              </Link>
+              <Link
+                href={`/${locale}/auth/signup`}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
+
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 text-center">
             Invoicer
           </h1>

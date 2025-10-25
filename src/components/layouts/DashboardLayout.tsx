@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { signOut, getCurrentUser } from '@/lib/auth';
+import type { AuthUser } from '@/lib/auth';
+import { useToast } from '@/components/ui';
 
 interface NavItem {
   href: string;
@@ -20,7 +23,30 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, profileType, locale }: DashboardLayoutProps) {
   const t = useTranslations();
   const pathname = usePathname();
+  const router = useRouter();
+  const { showToast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  async function loadUser() {
+    const currentUser = await getCurrentUser();
+    setUser(currentUser);
+  }
+
+  async function handleLogout() {
+    try {
+      await signOut();
+      showToast('Successfully logged out', 'success');
+      router.push(`/${locale}/auth/login`);
+    } catch (error) {
+      showToast('Logout failed', 'error');
+    }
+  }
 
   const baseHref = `/${locale}/${profileType}`;
 
@@ -76,12 +102,51 @@ export function DashboardLayout({ children, profileType, locale }: DashboardLayo
               {profileType === 'company' ? '🏢' : '👤'} {t(`common.${profileType}`)}
             </span>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            ← {t('nav.dashboard')}
-          </Link>
+
+          {/* User Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                {user?.email?.[0].toUpperCase() || 'U'}
+              </div>
+              <div className="hidden sm:block text-left">
+                <div className="text-sm font-medium text-gray-900">
+                  {user?.email}
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <div className="text-sm text-gray-500">Signed in as</div>
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {user?.email}
+                  </div>
+                </div>
+                <Link
+                  href="/"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => setShowUserMenu(false)}
+                >
+                  🏠 Home
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  🚪 Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

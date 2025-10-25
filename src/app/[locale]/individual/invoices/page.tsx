@@ -23,6 +23,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { getInvoices, deleteInvoice, getProfile } from '@/lib/api';
+import { getCurrentUser } from '@/lib/auth';
 import type { InvoiceWithItems } from '@/lib/api/invoices';
 
 const statusOptions = [
@@ -66,8 +67,13 @@ export default function InvoicesPage() {
   async function loadProfileAndInvoices() {
     try {
       setLoading(true);
-      const mockUserId = 'mock-user-id';
-      const profile = await getProfile(mockUserId, 'individual');
+      const user = await getCurrentUser();
+      if (!user) {
+        showToast('Please log in', 'error');
+        router.push(`/${locale}/auth/login`);
+        return;
+      }
+      const profile = await getProfile(user.id, 'individual');
 
       if (profile) {
         setProfileId(profile.id);

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
+import { robotoRegularBase64, robotoBoldBase64 } from './roboto-font';
 
 export interface InvoiceData {
   supplier: {
@@ -59,473 +60,558 @@ export interface InvoiceData {
   isVatPayer?: boolean;
 }
 
+// Format price in European format: 140,00 € or 18 340,00 €
+function formatPrice(amount: number): string {
+  const parts = amount.toFixed(2).split('.');
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${integerPart},${parts[1]} €`;
+}
+
+
 const translations = {
   en: {
     supplier: 'SUPPLIER',
     client: 'CLIENT',
-    invoice: 'INVOICE',
-    invoiceNumber: 'Invoice No.',
+    invoice: 'Invoice',
     id: 'ID',
     taxId: 'Tax ID',
     vatId: 'VAT ID',
     issueDate: 'Issue date',
     deliveryDate: 'Delivery date',
     dueDate: 'Due date',
-    paymentReference: 'VS',
-    paymentMethod: 'Payment method',
-    itemDescription: 'Description',
+    paymentReference: 'Payment reference',
     qty: 'Qty',
     unit: 'Unit',
     unitPrice: 'Unit price',
     total: 'Total',
-    invoiceTotal: 'Total to pay',
-    subtotal: 'Subtotal',
-    vat: 'VAT',
-    notVatPayer: 'The issuer is not a VAT payer.',
+    invoiceTotal: 'Invoice total',
+    totalPaymentAmount: 'Total payment amount',
+    notVatPayer: 'Note: The issuer is not a VAT payer.',
     issuedBy: 'Issued by',
     iban: 'IBAN',
-    swift: 'SWIFT/BIC',
-    bankAccount: 'Bank account',
-    paymentDetails: 'Payment details',
+    swift: 'SWIFT',
+    signatureAndSeal: 'Signature and company seal:',
   },
   sk: {
     supplier: 'DODÁVATEĽ',
     client: 'ODBERATEĽ',
-    invoice: 'FAKTÚRA',
-    invoiceNumber: 'Číslo faktúry',
+    invoice: 'Faktúra',
     id: 'IČO',
     taxId: 'DIČ',
     vatId: 'IČ DPH',
     issueDate: 'Dátum vystavenia',
     deliveryDate: 'Dátum dodania',
     dueDate: 'Dátum splatnosti',
-    paymentReference: 'VS',
-    paymentMethod: 'Forma úhrady',
-    itemDescription: 'Popis',
-    qty: 'Počet',
-    unit: 'MJ',
-    unitPrice: 'Cena/MJ',
+    paymentReference: 'Variabilný symbol',
+    qty: 'Množstvo',
+    unit: 'Jednotka',
+    unitPrice: 'Cena/jedn.',
     total: 'Celkom',
-    invoiceTotal: 'Celkom na úhradu',
-    subtotal: 'Medzisúčet',
-    vat: 'DPH',
-    notVatPayer: 'Nie sme platiteľmi DPH.',
+    invoiceTotal: 'Suma na úhradu',
+    totalPaymentAmount: 'Suma na úhradu',
+    notVatPayer: 'Nie je platcom DPH',
     issuedBy: 'Vystavil',
     iban: 'IBAN',
-    swift: 'SWIFT/BIC',
-    bankAccount: 'Číslo účtu',
-    paymentDetails: 'Platobné údaje',
+    swift: 'SWIFT',
+    signatureAndSeal: 'Pečiatka a podpis:',
   },
 };
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<Blob> {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a4',
+    putOnlyUsedFonts: true,
+    compress: true,
+  });
+
+  // Add Roboto fonts with full Slovak character support
+  doc.addFileToVFS('Roboto-Regular.ttf', robotoRegularBase64);
+  doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+  doc.addFileToVFS('Roboto-Bold.ttf', robotoBoldBase64);
+  doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+  doc.setFont('Roboto', 'normal');
+
   const t = translations[data.language];
 
+  // === LAYOUT CONSTANTS (FIXED) ===
   const margin = 15;
   const pageWidth = 210;
   const contentWidth = pageWidth - (margin * 2);
+
+  // Fixed box dimensions
+  const boxWidth = (contentWidth - 5) / 2;
+  const boxHeight = 95; // Fixed height for both SUPPLIER and CLIENT boxes
+  const boxPadding = 3; // Internal padding
+  const lineHeight = 3.5; // Standard line height for text
+
   let y = margin;
 
-  // === LOGO (top right if available) ===
+  // === TWO BOXES SIDE BY SIDE ===
+
+  // === LEFT BOX - SUPPLIER ===
+  const supplierBoxX = margin;
+  const supplierBoxY = y;
+
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.1);
+  doc.setLineDash([1, 1]);
+  doc.rect(supplierBoxX, supplierBoxY, boxWidth, boxHeight);
+
+  let supplierY = supplierBoxY + boxPadding + 2;
+
+  // SUPPLIER header
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
+  doc.text(t.supplier + ':', supplierBoxX + boxPadding, supplierY);
+  supplierY += 4.5;
+
+  // Company name (single line, truncate if too long)
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(9);
+  const nameLines = doc.splitTextToSize(data.supplier.name, boxWidth - (boxPadding * 2));
+  doc.text(nameLines[0], supplierBoxX + boxPadding, supplierY);
+  supplierY += 4;
+
+  // Address block (with word wrapping for long addresses)
+  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(8);
+
+  const addressLines = doc.splitTextToSize(data.supplier.address, boxWidth - (boxPadding * 2));
+  // Show up to 2 lines of address if needed
+  const maxAddressLines = Math.min(2, addressLines.length);
+  for (let i = 0; i < maxAddressLines; i++) {
+    doc.text(addressLines[i], supplierBoxX + boxPadding, supplierY);
+    supplierY += lineHeight;
+  }
+
+  // Postal code and city
+  const cityLine = doc.splitTextToSize(`${data.supplier.postalCode} ${data.supplier.city}`, boxWidth - (boxPadding * 2));
+  doc.text(cityLine[0], supplierBoxX + boxPadding, supplierY);
+  supplierY += lineHeight;
+
+  // Country
+  doc.text(data.supplier.country, supplierBoxX + boxPadding, supplierY);
+  supplierY += 5;
+
+  // Logo section (fixed area: 35x35mm centered)
+  const logoSize = 35;
+  const logoX = supplierBoxX + (boxWidth / 2) - (logoSize / 2);
+
   if (data.supplier.logoUrl) {
     try {
-      // Logo will be 40mm wide, positioned in top right
-      const logoWidth = 40;
-      const logoHeight = 20; // Adjust based on aspect ratio
-      const logoX = pageWidth - margin - logoWidth;
-      doc.addImage(data.supplier.logoUrl, 'PNG', logoX, y, logoWidth, logoHeight);
+      doc.addImage(data.supplier.logoUrl, 'PNG', logoX, supplierY, logoSize, logoSize);
     } catch (error) {
       console.error('Error adding logo:', error);
+      // Draw placeholder
+      doc.setDrawColor(60, 60, 60);
+      doc.setLineWidth(2);
+      doc.circle(logoX + logoSize/2, supplierY + logoSize/2, logoSize/2, 'S');
+      doc.setFont('Roboto', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.text('LAB', logoX + logoSize/2, supplierY + logoSize/2 - 2, { align: 'center' });
+      doc.text('9191', logoX + logoSize/2, supplierY + logoSize/2 + 4, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      doc.setLineWidth(0.1);
     }
+  } else {
+    // Draw placeholder if no logo
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(2);
+    doc.circle(logoX + logoSize/2, supplierY + logoSize/2, logoSize/2, 'S');
+    doc.setFont('Roboto', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    doc.text('LAB', logoX + logoSize/2, supplierY + logoSize/2 - 2, { align: 'center' });
+    doc.text('9191', logoX + logoSize/2, supplierY + logoSize/2 + 4, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+    doc.setLineWidth(0.1);
   }
+  supplierY += logoSize + 4;
 
-  // === SUPPLIER & CLIENT INFO BOXES ===
-  // Two boxes side by side, taking equal width
-  const boxWidth = (contentWidth - 5) / 2;
-  const boxHeight = 45;
-
-  // Supplier box (left)
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, boxWidth, boxHeight);
-
-  let boxY = y + 5;
-  doc.setFont('helvetica', 'bold');
+  // ID section (fixed height)
+  doc.setFont('Roboto', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(t.supplier, margin + 3, boxY);
-  boxY += 5;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.supplier.name, margin + 3, boxY);
-  boxY += 5;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-
-  if (data.supplier.registrationInfo) {
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(7);
-
-    // Manually split by words to avoid spacing issues
-    const words = data.supplier.registrationInfo.split(' ');
-    let currentLine = '';
-    const maxWidth = boxWidth - 6;
-
-    words.forEach((word) => {
-      const testLine = currentLine + (currentLine ? ' ' : '') + word;
-      const textWidth = doc.getTextWidth(testLine);
-
-      if (textWidth > maxWidth && currentLine) {
-        doc.text(currentLine, margin + 3, boxY);
-        boxY += 3;
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    });
-
-    // Print remaining line
-    if (currentLine) {
-      doc.text(currentLine, margin + 3, boxY);
-      boxY += 3;
-    }
-
-    boxY += 1;
-    doc.setFontSize(8);
-  }
-
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.supplier.address, margin + 3, boxY);
-  boxY += 3.5;
-  doc.text(`${data.supplier.postalCode} ${data.supplier.city}`, margin + 3, boxY);
-  boxY += 3.5;
-  doc.text(data.supplier.country, margin + 3, boxY);
-  boxY += 4;
-
   if (data.supplier.companyId) {
-    doc.text(`${t.id}: ${data.supplier.companyId}`, margin + 3, boxY);
-    boxY += 3;
+    doc.text(`${t.id}: ${data.supplier.companyId}`, supplierBoxX + boxPadding, supplierY);
+    supplierY += lineHeight;
   }
   if (data.supplier.taxId) {
-    doc.text(`${t.taxId}: ${data.supplier.taxId}`, margin + 3, boxY);
-    boxY += 3;
-  }
-  if (data.supplier.vatId) {
-    doc.text(`${t.vatId}: ${data.supplier.vatId}`, margin + 3, boxY);
+    doc.text(`${t.taxId}: ${data.supplier.taxId}`, supplierBoxX + boxPadding, supplierY);
+    supplierY += lineHeight;
   }
 
-  // Client box (right)
-  const clientX = margin + boxWidth + 5;
-  doc.rect(clientX, y, boxWidth, boxHeight);
+  // Registration info (max 2 lines, very small font, stays within box)
+  if (data.supplier.registrationInfo) {
+    supplierY += 1;
+    doc.setFont('Roboto', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(60, 60, 60);
 
-  boxY = y + 5;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(t.client, clientX + 3, boxY);
-  boxY += 5;
+    // Use narrower width to ensure text stays in box
+    const regMaxWidth = boxWidth - (boxPadding * 3);
+    const regLines = doc.splitTextToSize(data.supplier.registrationInfo, regMaxWidth);
+    const maxRegLines = 2;
+    for (let i = 0; i < Math.min(maxRegLines, regLines.length); i++) {
+      doc.text(regLines[i], supplierBoxX + boxPadding, supplierY);
+      supplierY += 2.3;
+    }
+    doc.setTextColor(0, 0, 0);
+  }
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  // Calculate position for separator (should be at fixed position from bottom)
+  const bankSectionHeight = 20; // Fixed height for bank info section
+  const separatorY = supplierBoxY + boxHeight - bankSectionHeight;
+
+  // Draw separator line
+  doc.setDrawColor(230, 230, 230);
+  doc.setLineWidth(0.3);
+  doc.setLineDash([]);
+  doc.line(supplierBoxX + boxPadding, separatorY, supplierBoxX + boxWidth - boxPadding, separatorY);
+  doc.setLineWidth(0.1);
+
+  // Bank info section (fixed position at bottom)
+  let bankY = separatorY + 4;
+  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(7.5);
   doc.setTextColor(0, 0, 0);
-  doc.text(data.client.name, clientX + 3, boxY);
-  boxY += 5;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(data.client.address, clientX + 3, boxY);
-  boxY += 3.5;
-  doc.text(`${data.client.postalCode} ${data.client.city}`, clientX + 3, boxY);
-  boxY += 3.5;
-  doc.text(data.client.country, clientX + 3, boxY);
-  boxY += 4;
-
-  if (data.client.companyId) {
-    doc.text(`${t.id}: ${data.client.companyId}`, clientX + 3, boxY);
-    boxY += 3;
+  if (data.bank.name && data.bank.account) {
+    const bankText = `${data.bank.name}: ${data.bank.account}`;
+    const bankLines = doc.splitTextToSize(bankText, boxWidth - (boxPadding * 2));
+    doc.text(bankLines[0], supplierBoxX + boxPadding, bankY);
+    bankY += 3;
   }
-  if (data.client.taxId) {
-    doc.text(`${t.taxId}: ${data.client.taxId}`, clientX + 3, boxY);
-    boxY += 3;
+  if (data.bank.iban && data.bank.swift) {
+    const ibanText = `${t.iban} / ${t.swift}: ${data.bank.iban} / ${data.bank.swift}`;
+    const ibanLines = doc.splitTextToSize(ibanText, boxWidth - (boxPadding * 2));
+    doc.text(ibanLines[0], supplierBoxX + boxPadding, bankY);
+    bankY += 3;
+  }
+
+  const paymentRefText = `${t.paymentReference}: ${data.paymentReference}`;
+  doc.text(paymentRefText, supplierBoxX + boxPadding, bankY);
+  bankY += 3;
+
+  const paymentMethodText = `Method of payment: ${data.paymentMethod}`;
+  doc.text(paymentMethodText, supplierBoxX + boxPadding, bankY);
+
+  // === RIGHT BOX - CLIENT ===
+  const clientBoxX = margin + boxWidth + 5;
+  const clientBoxY = y;
+
+  doc.setLineDash([1, 1]);
+  doc.rect(clientBoxX, clientBoxY, boxWidth, boxHeight);
+
+  // INVOICE TITLE (outside box, top right)
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(24);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`${t.invoice} ${data.invoiceNumber}`, pageWidth - margin, clientBoxY + 10, { align: 'right' });
+
+  // Separator line under title
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+  doc.setLineDash([1, 2]);
+  doc.line(clientBoxX + boxPadding, clientBoxY + 16, pageWidth - margin - boxPadding, clientBoxY + 16);
+  doc.setLineDash([1, 1]);
+  doc.setLineWidth(0.1);
+
+  let clientY = clientBoxY + 24;
+
+  // CLIENT header
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(8);
+  doc.text(t.client + ':', clientBoxX + boxPadding, clientY);
+  clientY += 5;
+
+  // Client name (single line, truncate if needed)
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(10);
+  const clientNameLines = doc.splitTextToSize(data.client.name, boxWidth - (boxPadding * 2));
+  doc.text(clientNameLines[0], clientBoxX + boxPadding, clientY);
+  clientY += 5;
+
+  // Client address (with word wrapping for long addresses)
+  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(8);
+
+  const clientAddressLines = doc.splitTextToSize(data.client.address, boxWidth - (boxPadding * 2));
+  // Show up to 2 lines of address if needed
+  const maxClientAddressLines = Math.min(2, clientAddressLines.length);
+  for (let i = 0; i < maxClientAddressLines; i++) {
+    doc.text(clientAddressLines[i], clientBoxX + boxPadding, clientY);
+    clientY += lineHeight;
+  }
+
+  // Postal code and city
+  const clientCityLine = doc.splitTextToSize(`${data.client.postalCode} ${data.client.city}`, boxWidth - (boxPadding * 2));
+  doc.text(clientCityLine[0], clientBoxX + boxPadding, clientY);
+  clientY += lineHeight;
+
+  // Country
+  doc.text(data.client.country, clientBoxX + boxPadding, clientY);
+  clientY += 10;
+
+  // IDs section (flexible, but limited space)
+  doc.setFontSize(8);
+  if (data.client.companyId) {
+    doc.text(`${t.id}: ${data.client.companyId}`, clientBoxX + boxPadding, clientY);
+    clientY += lineHeight;
   }
   if (data.client.vatId) {
-    doc.text(`${t.vatId}: ${data.client.vatId}`, clientX + 3, boxY);
+    doc.text(`${t.vatId}: ${data.client.vatId}`, clientBoxX + boxPadding, clientY);
+    clientY += lineHeight + 2;
   }
 
-  y += boxHeight + 8;
+  // Dates section (fixed position near bottom, right-aligned values)
+  const datesSectionY = clientBoxY + boxHeight - 18; // Fixed position from bottom
+  let dateY = datesSectionY;
 
-  // === INVOICE TITLE & DETAILS BOX ===
-  const detailsBoxHeight = 20;
-  doc.setFillColor(245, 245, 245);
-  doc.rect(margin, y, contentWidth, detailsBoxHeight, 'F');
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(margin, y, contentWidth, detailsBoxHeight);
+  const leftCol = clientBoxX + boxPadding;
+  const rightCol = clientBoxX + boxWidth - boxPadding;
 
-  let detailsY = y + 6;
+  doc.text(`${t.issueDate}:`, leftCol, dateY);
+  doc.text(data.issueDate, rightCol, dateY, { align: 'right' });
+  dateY += lineHeight;
 
-  // Invoice title (left)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(0, 0, 0);
-  doc.text(t.invoice, margin + 3, detailsY);
+  if (data.deliveryDate) {
+    doc.text(`${t.deliveryDate}:`, leftCol, dateY);
+    doc.text(data.deliveryDate, rightCol, dateY, { align: 'right' });
+    dateY += lineHeight;
+  }
 
-  // Invoice number (right)
-  doc.setFontSize(16);
-  doc.text(data.invoiceNumber, pageWidth - margin - 3, detailsY, { align: 'right' });
+  doc.text(`${t.dueDate}:`, leftCol, dateY);
+  doc.text(data.dueDate, rightCol, dateY, { align: 'right' });
 
-  detailsY += 7;
+  doc.setLineDash([]);
+  y += boxHeight + 5;
 
-  // Details in row
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-
-  const detailsLeft = margin + 3;
-  const detailsMid = margin + (contentWidth / 2);
-
-  doc.setTextColor(80, 80, 80);
-  doc.text(`${t.issueDate}:`, detailsLeft, detailsY);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.issueDate, detailsLeft + 30, detailsY);
-
-  doc.setTextColor(80, 80, 80);
-  doc.text(`${t.dueDate}:`, detailsMid, detailsY);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.dueDate, detailsMid + 30, detailsY);
-
-  y += detailsBoxHeight + 8;
-
-  // === ITEMS TABLE ===
-  // Table header
-  doc.setFillColor(230, 230, 230);
-  const headerHeight = 7;
-  doc.rect(margin, y, contentWidth, headerHeight, 'F');
-
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.5);
+  // Separator line
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineDash([2, 2]);
   doc.line(margin, y, pageWidth - margin, y);
-  doc.line(margin, y + headerHeight, pageWidth - margin, y + headerHeight);
-
+  doc.setLineDash([]);
   y += 5;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(50, 50, 50);
+  // === ITEMS TABLE ===
+  doc.setFillColor(240, 240, 240);
+  doc.rect(margin, y, contentWidth, 6, 'F');
 
-  // Column positions
-  const colDesc = margin + 2;
-  const colQty = pageWidth - margin - 90;
-  const colUnit = pageWidth - margin - 70;
-  const colPrice = pageWidth - margin - 50;
-  const colTotal = pageWidth - margin - 2;
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(60, 60, 60);
 
-  doc.text(t.itemDescription, colDesc, y);
+  const colDesc = margin + 1;
+  const colQty = pageWidth - margin - 85;
+  const colUnit = pageWidth - margin - 65;
+  const colPrice = pageWidth - margin - 45;
+  const colTotal = pageWidth - margin - 1;
+
+  y += 4;
+  doc.text('Item name and description', colDesc, y);
   doc.text(t.qty, colQty, y, { align: 'center' });
   doc.text(t.unit, colUnit, y, { align: 'center' });
   doc.text(t.unitPrice, colPrice, y, { align: 'right' });
   doc.text(t.total, colTotal, y, { align: 'right' });
 
-  y += 4;
+  y += 3;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.1);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 2;
 
-  // Table rows
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  // Items
+  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
-  doc.setLineWidth(0.2);
-  doc.setDrawColor(220, 220, 220);
 
-  data.items.forEach((item, index) => {
-    if (y > 250) {
+  data.items.forEach((item) => {
+    if (y > 240) {
       doc.addPage();
       y = margin;
     }
 
     const startY = y;
-
-    // Handle multiline descriptions by splitting on newlines first
-    const descriptionLines = item.description.split('\n');
-    const allDescLines: string[] = [];
+    const lines = item.description.split('\n');
+    const wrappedLines: string[] = [];
     const descMaxWidth = colQty - colDesc - 5;
 
-    // Split each line by width, preserving manual line breaks
-    descriptionLines.forEach((line) => {
-      if (line.trim() === '') {
-        allDescLines.push(''); // Preserve empty lines
-      } else {
-        // Manually wrap to avoid spacing issues with Slovak text
-        const words = line.split(' ');
+    lines.forEach((line) => {
+      if (line.trim()) {
+        const words = line.split(/\s+/);
         let currentLine = '';
-
         words.forEach((word) => {
-          const testLine = currentLine + (currentLine ? ' ' : '') + word;
-          const textWidth = doc.getTextWidth(testLine);
-
-          if (textWidth > descMaxWidth && currentLine) {
-            allDescLines.push(currentLine);
+          const test = currentLine + (currentLine ? ' ' : '') + word;
+          if (doc.getTextWidth(test) > descMaxWidth && currentLine) {
+            wrappedLines.push(currentLine);
             currentLine = word;
           } else {
-            currentLine = testLine;
+            currentLine = test;
           }
         });
-
-        if (currentLine) {
-          allDescLines.push(currentLine);
-        }
+        if (currentLine) wrappedLines.push(currentLine);
+      } else {
+        wrappedLines.push('');
       }
     });
 
-    const lineHeight = 4;
-    const rowHeight = Math.max(lineHeight * allDescLines.length, 7);
+    const lineHeight = 3.5;
+    const rowHeight = Math.max(wrappedLines.length * lineHeight, 6);
 
-    allDescLines.forEach((line: string, i: number) => {
+    wrappedLines.forEach((line, i) => {
       doc.text(line, colDesc, y + (i * lineHeight));
     });
 
     const midY = startY + (rowHeight / 2) + 1;
-
-    doc.text(item.quantity.toFixed(2), colQty, midY, { align: 'center' });
+    doc.text(item.quantity.toString(), colQty, midY, { align: 'center' });
     doc.text(item.unit, colUnit, midY, { align: 'center' });
-    doc.text(`€${item.unitPrice.toFixed(2)}`, colPrice, midY, { align: 'right' });
-    doc.text(`€${item.totalPrice.toFixed(2)}`, colTotal, midY, { align: 'right' });
+    doc.text(formatPrice(item.unitPrice), colPrice, midY, { align: 'right' });
+    doc.text(formatPrice(item.totalPrice), colTotal, midY, { align: 'right' });
 
-    y += rowHeight;
-
-    // Row separator line
+    y += rowHeight + 1;
     doc.line(margin, y, pageWidth - margin, y);
-    y += 2;
+    y += 1;
   });
 
-  // === TOTALS SECTION ===
+  // Total
   y += 3;
-
-  const totalsX = pageWidth - margin - 60;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-
-  if (data.subtotal) {
-    doc.setTextColor(80, 80, 80);
-    doc.text(`${t.subtotal}:`, totalsX, y);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`€${data.subtotal.toFixed(2)}`, colTotal, y, { align: 'right' });
-    y += 5;
-  }
-
-  if (data.vatAmount && data.vatAmount > 0) {
-    doc.setTextColor(80, 80, 80);
-    doc.text(`${t.vat}:`, totalsX, y);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`€${data.vatAmount.toFixed(2)}`, colTotal, y, { align: 'right' });
-    y += 5;
-  }
-
-  // Total line
   doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.8);
-  doc.line(totalsX - 5, y - 1, pageWidth - margin, y - 1);
+  doc.setLineWidth(0.5);
+  doc.line(pageWidth - margin - 60, y, pageWidth - margin, y);
+  y += 5;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`${t.invoiceTotal}:`, totalsX, y + 4);
-  doc.text(`€${data.totalAmount.toFixed(2)}`, colTotal, y + 4, { align: 'right' });
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(10);
+  doc.text(`${t.invoiceTotal}:`, pageWidth - margin - 58, y);
+  doc.text(formatPrice(data.totalAmount), colTotal, y, { align: 'right' });
 
-  y += 10;
+  y += 8;
 
-  // Not VAT payer note
+  // VAT note and Signature box on same line
   if (!data.isVatPayer) {
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(t.notVatPayer, margin, y);
-    y += 6;
-  }
-
-  // Notes
-  if (data.notes) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFont('Roboto', 'normal');
+    doc.setFontSize(7);
     doc.setTextColor(80, 80, 80);
-    const notesLines = doc.splitTextToSize(data.notes, contentWidth - 10);
-    notesLines.forEach((line: string) => {
-      doc.text(line, margin, y);
-      y += 3.5;
-    });
-    y += 3;
+    doc.text(t.notVatPayer, margin, y);
   }
 
-  // === PAYMENT DETAILS BOX ===
-  y += 2;
-  const paymentBoxHeight = 25;
+  // Signature box (right side)
+  const sigX = pageWidth - margin - 80;
+  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(80, 80, 80);
+  doc.text(t.signatureAndSeal, sigX, y);
 
-  doc.setFillColor(250, 250, 250);
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, y, contentWidth - 30, paymentBoxHeight);
+  y += 35;
 
-  let paymentY = y + 5;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  doc.text(t.paymentDetails, margin + 3, paymentY);
-  paymentY += 5;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(60, 60, 60);
-
-  doc.text(`${t.iban}: ${data.bank.iban}`, margin + 3, paymentY);
-  paymentY += 4;
-
-  if (data.bank.swift) {
-    doc.text(`${t.swift}: ${data.bank.swift}`, margin + 3, paymentY);
-    paymentY += 4;
-  }
-
-  doc.text(`${t.paymentReference}: ${data.paymentReference}`, margin + 3, paymentY);
-
-  // QR Code (right side of payment box)
-  if (data.includeQrCode !== false) {
+  // === QR CODE & BLUE BOX ===
+  if (data.includeQrCode) {
     try {
+      // QR code uses standard decimal format (not formatted)
       const qrData = `SPD*1.0*ACC:${data.bank.iban}*AM:${data.totalAmount.toFixed(2)}*CC:EUR*MSG:${data.paymentReference}*X-VS:${data.paymentReference}`;
       const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-        width: 200,
-        margin: 0,
-        errorCorrectionLevel: 'M'
+        width: 300,
+        margin: 1,
+        errorCorrectionLevel: 'M',
       });
 
-      const qrSize = 23;
-      const qrX = pageWidth - margin - qrSize - 2;
-      const qrY = y + 1;
-      doc.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+      const qrSize = 32;
+      doc.addImage(qrCodeDataUrl, 'PNG', margin, y - 5, qrSize, qrSize);
     } catch (error) {
       console.error('Error generating QR code:', error);
     }
   }
 
-  // === FOOTER ===
-  y = 277;
+  // Blue box (4 columns with separators)
+  const blueBoxX = margin + 40;
+  const blueBoxWidth = contentWidth - 40;
+  const blueBoxHeight = 16;
 
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.2);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 3;
+  doc.setFillColor(173, 216, 230);
+  doc.rect(blueBoxX, y, blueBoxWidth, blueBoxHeight, 'F');
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
+  // Column positions - centered in each column
+  const colWidth = blueBoxWidth / 4;
+  const col1Center = blueBoxX + (colWidth / 2);
+  const col2Center = blueBoxX + colWidth + (colWidth / 2);
+  const col3Center = blueBoxX + (colWidth * 2) + (colWidth / 2);
+  const col4Center = blueBoxX + (colWidth * 3) + (colWidth / 2);
 
-  const footerParts = [];
-  if (data.supplier.email) footerParts.push(data.supplier.email);
-  if (data.supplier.phone) footerParts.push(data.supplier.phone);
-
-  if (footerParts.length > 0) {
-    doc.text(footerParts.join('  •  '), pageWidth / 2, y, { align: 'center' });
+  // Draw separators between columns (white lines)
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.5);
+  for (let i = 1; i < 4; i++) {
+    const sepX = blueBoxX + (colWidth * i);
+    doc.line(sepX, y, sepX, y + blueBoxHeight);
   }
+
+  doc.setFont('Roboto', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 0, 0);
+
+  let blueY = y + 4.5;
+  // Headers - centered
+  doc.text(t.iban, col1Center, blueY, { align: 'center' });
+  doc.text(t.paymentReference, col2Center, blueY, { align: 'center' });
+  doc.text(t.dueDate, col3Center, blueY, { align: 'center' });
+  doc.text(t.totalPaymentAmount, col4Center, blueY, { align: 'center' });
+
+  blueY += 4.5;
+  doc.setFont('Roboto', 'bold');
+
+  // IBAN - with word wrapping if needed (smaller font to fit in column)
+  doc.setFontSize(6.5);
+  const ibanLines = doc.splitTextToSize(data.bank.iban, colWidth - 2);
+  const maxIbanLines = Math.min(2, ibanLines.length);
+  for (let i = 0; i < maxIbanLines; i++) {
+    doc.text(ibanLines[i], col1Center, blueY + (i * 3.5), { align: 'center' });
+  }
+
+  // Other values - centered
+  doc.setFontSize(9);
+  doc.text(data.paymentReference, col2Center, blueY, { align: 'center' });
+  doc.text(data.dueDate, col3Center, blueY, { align: 'center' });
+  doc.text(formatPrice(data.totalAmount), col4Center, blueY, { align: 'center' });
+
+  y += blueBoxHeight + 5;
+
+  // === FOOTER (at bottom of page) ===
+  const footerY = 280; // Fixed position at bottom
+
+  // Dotted line (at bottom, before footer text)
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.1);
+  doc.setLineDash([1, 2]);
+  doc.line(margin, footerY, pageWidth - margin, footerY);
+  doc.setLineDash([]);
+
+  // Footer text (below dotted line)
+  const footerTextY = footerY + 4;
+  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+
+  let footerText = `${t.issuedBy}: ${data.supplier.name}`;
+  doc.text(footerText, margin, footerTextY);
+
+  if (data.supplier.phone) {
+    doc.text(`☎ ${data.supplier.phone}`, pageWidth / 2 - 20, footerTextY, { align: 'center' });
+  }
+
+  if (data.supplier.email) {
+    doc.text(`✉ ${data.supplier.email}`, pageWidth - margin, footerTextY, { align: 'right' });
+  }
+
+  // Bottom right corner
+  const bottomY = 287;
+  doc.setFontSize(6);
+  doc.setTextColor(150, 150, 150);
+  doc.text('Created with SuperFaktura.sk', pageWidth - margin - 2, bottomY, { align: 'right' });
+  doc.text('Page 1/1', pageWidth - margin - 2, bottomY + 2.5, { align: 'right' });
 
   return doc.output('blob');
 }

@@ -69,6 +69,7 @@ export default function InvoiceViewPage() {
           registrationInfo: profile.registration_info || undefined,
           phone: profile.phone || undefined,
           email: profile.email || undefined,
+          logoUrl: profile.logo_url || undefined,
         },
         client: {
           name: invoice.client?.name || '',

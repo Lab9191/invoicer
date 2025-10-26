@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+// Download Roboto fonts using browser's fetch API
+const fonts = [
+  { name: 'Roboto-Regular.ttf', url: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2' },
+  { name: 'Roboto-Bold.ttf', url: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfBBc4.woff2' }
+];
+
+fonts.forEach(font => {
+  fetch(font.url)
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = font.name;
+      a.click();
+    });
+});
+</script>
+</body>
+</html>
